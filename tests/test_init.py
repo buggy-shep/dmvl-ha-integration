@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+
 import httpx
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -10,14 +12,21 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.dmvl.const import DOMAIN
-from tests.conftest import AccountHandler, make_entry, patch_client
+from tests.conftest import (
+    LOGIN,
+    AccountHandler,
+    entity_id,
+    load_fixture,
+    make_entry,
+    patch_client,
+)
 
-ENTITY_IDS = {
-    "sensor.domovladelets_amount_due",
-    "sensor.domovladelets_charged",
-    "sensor.domovladelets_paid",
-    "sensor.domovladelets_last_payment",
-    "binary_sensor.domovladelets_unpaid_documents",
+ENTITY_SUFFIXES = {
+    ("sensor", "amount_due"),
+    ("sensor", "charged"),
+    ("sensor", "paid"),
+    ("sensor", "last_payment"),
+    ("binary_sensor", "unpaid_documents"),
 }
 
 
@@ -36,18 +45,76 @@ async def test_setup_creates_device_and_entities(
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, entry.entry_id)
     assert len(devices) == 1
-    assert devices[0].name == "Domovladelets"
+    # device is named after the account from the snapshot (spec 0005 R1)
+    assert devices[0].name == "Synthetic Housing LLC"
     assert devices[0].manufacturer == "Domovladelets"
     assert devices[0].model == "Account"
 
-    for entity_id in ENTITY_IDS:
-        assert hass.states.get(entity_id) is not None, entity_id
-
     entity_registry = er.async_get(hass)
-    for entity_id in ENTITY_IDS:
-        registry_entry = entity_registry.async_get(entity_id)
-        assert registry_entry is not None, entity_id
-        assert registry_entry.unique_id.startswith(f"{entry.entry_id}_")
+    for domain, suffix in ENTITY_SUFFIXES:
+        resolved = entity_id(hass, entry, domain, suffix)
+        assert hass.states.get(resolved) is not None, resolved
+        registry_entry = entity_registry.async_get(resolved)
+        assert registry_entry is not None, resolved
+        assert registry_entry.unique_id == f"{entry.entry_id}_{suffix}"
+
+
+async def test_device_name_falls_back_to_login(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["name"] = ""
+    handler = AccountHandler(payload=payload)
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    registry = dr.async_get(hass)
+    devices = dr.async_entries_for_config_entry(registry, entry.entry_id)
+    assert devices[0].name == LOGIN
+
+
+async def test_two_entries_get_distinct_device_names(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload_one = copy.deepcopy(load_fixture("authentication.json"))
+    payload_one["name"] = "Account One"
+    payload_two = copy.deepcopy(load_fixture("authentication.json"))
+    payload_two["name"] = "Account Two"
+    handler = AccountHandler(
+        payload_by_login={LOGIN: payload_one, "other@example.com": payload_two}
+    )
+    patch_client(monkeypatch, handler)
+    first = make_entry(hass)
+    second = make_entry(hass, login="other@example.com", unique_id="other@example.com")
+    # Setting up the component loads every registered entry for the domain.
+    assert await hass.config_entries.async_setup(first.entry_id)
+    await hass.async_block_till_done()
+    assert first.state is ConfigEntryState.LOADED
+    assert second.state is ConfigEntryState.LOADED
+
+    registry = dr.async_get(hass)
+    names = {
+        dr.async_entries_for_config_entry(registry, e.entry_id)[0].name
+        for e in (first, second)
+    }
+    # each account gets its own device name from the snapshot
+    assert names == {"Account One", "Account Two"}
+
+
+async def test_device_name_falls_back_to_constant(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(payload={**load_fixture("authentication.json"), "name": "", "login": ""})
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, login="")
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    registry = dr.async_get(hass)
+    devices = dr.async_entries_for_config_entry(registry, entry.entry_id)
+    assert devices[0].name == "Domovladelets"
 
 
 async def test_setup_authentication_failure_triggers_reauth(
@@ -113,13 +180,14 @@ async def test_refresh_updates_entities(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert float(hass.states.get("sensor.domovladelets_amount_due").state) == 150.0
+    amount_due = entity_id(hass, entry, "sensor", "amount_due")
+    assert float(hass.states.get(amount_due).state) == 150.0
 
     handler.payload["personal_account"]["all_debt_c"] = "42.50"
     await entry.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert float(hass.states.get("sensor.domovladelets_amount_due").state) == 42.5
+    assert float(hass.states.get(amount_due).state) == 42.5
     assert entry.runtime_data.coordinator.last_update_success is True
 
 
@@ -131,13 +199,14 @@ async def test_refresh_failure_marks_entities_unavailable(
     entry = make_entry(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    amount_due = entity_id(hass, entry, "sensor", "amount_due")
 
     handler.transport_error = httpx.ConnectError("refused")
     await entry.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
     assert entry.runtime_data.coordinator.last_update_success is False
-    assert hass.states.get("sensor.domovladelets_amount_due").state == "unavailable"
+    assert hass.states.get(amount_due).state == "unavailable"
 
 
 async def test_refresh_authentication_failure_starts_reauth(

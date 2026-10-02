@@ -48,9 +48,11 @@ class AccountHandler:
         payload: dict[str, Any] | None = None,
         error: str | None = None,
         transport_error: Exception | None = None,
+        payload_by_login: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         self.status = status
         self.payload = payload if payload is not None else load_fixture("authentication.json")
+        self.payload_by_login = payload_by_login or {}
         self.error = error
         self.transport_error = transport_error
         self.requests: list[httpx.Request] = []
@@ -61,7 +63,11 @@ class AccountHandler:
             raise self.transport_error
         if self.error is not None:
             return httpx.Response(200, json={"error": self.error})
-        return httpx.Response(self.status, json=self.payload)
+        payload = self.payload
+        login = request.url.params.get("login")
+        if self.payload_by_login and login in self.payload_by_login:
+            payload = self.payload_by_login[login]
+        return httpx.Response(self.status, json=payload)
 
 
 def patch_client(
@@ -118,6 +124,18 @@ async def setup_entry(
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
+
+
+def entity_id(hass: HomeAssistant, entry, domain: str, suffix: str) -> str:
+    """Resolve an entity id by its unique id (device name is dynamic)."""
+    from homeassistant.helpers import entity_registry as er
+
+    registry = er.async_get(hass)
+    unique_id = f"{entry.entry_id}_{suffix}"
+    for reg_entry in registry.entities.values():
+        if reg_entry.platform == DOMAIN and reg_entry.unique_id == unique_id:
+            return reg_entry.entity_id
+    raise AssertionError(f"entity {unique_id} not found in the registry")
 
 
 @pytest.fixture(autouse=True)

@@ -7,7 +7,13 @@ import copy
 import pytest
 from homeassistant.core import HomeAssistant
 
-from tests.conftest import AccountHandler, load_fixture, make_entry, patch_client
+from tests.conftest import (
+    AccountHandler,
+    entity_id,
+    load_fixture,
+    make_entry,
+    patch_client,
+)
 
 
 async def _setup(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, payload: dict):
@@ -22,9 +28,9 @@ async def _setup(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, payload: 
 async def test_unpaid_documents_is_on_with_debt(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    await _setup(hass, monkeypatch, load_fixture("authentication.json"))
+    entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
 
-    state = hass.states.get("binary_sensor.domovladelets_unpaid_documents")
+    state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
     assert state.state == "on"
     assert state.attributes["device_class"] == "problem"
 
@@ -38,6 +44,7 @@ async def test_unpaid_documents_is_off_when_settled(
         {"ist_date": "2026-09-01", "ist_nach": "250.00", "ist_opl": "250.00"}
     ]
 
-    await _setup(hass, monkeypatch, payload)
+    entry = await _setup(hass, monkeypatch, payload)
 
-    assert hass.states.get("binary_sensor.domovladelets_unpaid_documents").state == "off"
+    state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
+    assert state.state == "off"

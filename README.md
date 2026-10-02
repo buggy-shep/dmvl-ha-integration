@@ -52,6 +52,7 @@ Copy `custom_components/dmvl/` from this repository into your Home Assistant
 2. Search for **Domovladelets**.
 3. Enter your account login and password.
 4. Optionally enable **Verify TLS certificate**.
+5. After setup, use *Configure* to choose the optional entities.
 
 The service sends the credentials with every request, so the login and password
 are stored in the Home Assistant config entry and are never written to logs or
@@ -67,14 +68,39 @@ Turn it on to require a valid certificate chain if your setup supports it.
 
 | Entity | Type | Description |
 |---|---|---|
-| Amount due | `sensor` | Outstanding balance ("to pay") |
-| Charged | `sensor` | Total charged for the current period |
-| Paid | `sensor` | Total paid for the current period |
+| Amount due | `sensor` | Outstanding balance ("to pay"); `period` and `payment_purpose` attributes |
+| Charged | `sensor` | Total charged for the current period; `period` and `payment_purpose` attributes |
+| Paid | `sensor` | Total paid for the current period; `period` and `payment_purpose` attributes |
 | Unpaid documents | `binary_sensor` | On when a document is unpaid |
 | Last payment | `sensor` | Date of the latest payment (`amount` attribute) |
 
-The account is represented as a single Home Assistant device; all entities
-belong to it.
+The account is represented as a single Home Assistant device named after the
+account (the name reported by the service, falling back to the login); all
+entities belong to it.
+
+### Optional entities
+
+The account options (*Settings → Devices & Services → Domovladelets →
+Configure*) let you hide the **Charged**, **Paid** and **Last payment**
+entities. **Amount due** and **Unpaid documents** are always created.
+
+## Data updates
+
+Account data is read-only and refreshed:
+
+- **on startup** — one fetch when the integration is set up;
+- **on a schedule** — every 6 hours by default, configurable from 1 to 24 hours
+  in the account options;
+- **on demand** — the `dmvl.refresh` action fetches immediately, for example
+  after a payment:
+
+  ```yaml
+  action: dmvl.refresh
+  target:
+    entity_id: sensor.amount_due
+  ```
+
+  Without a target the action refreshes every configured account.
 
 ## Removal
 
@@ -89,7 +115,6 @@ belong to it.
 
 - Meter readings (read-only) and their submission period.
 - Per-segment amount due and receipt links.
-- Options flow to select the visible entity set.
 
 ## License
 

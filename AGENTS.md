@@ -151,10 +151,11 @@ Follow the official integration development docs
 A feature branch may merge into `master` only when both hold:
 
 1. A full local run is green (§3/§7).
-2. A skeptic review returns no `BLOCKING` findings. Invoke the group's
-   `skeptic` subagent (Task tool; its definition is maintained in the
-   non-public group workspace, not in this public repository) with a prompt
-   such as:
+2. A skeptic review returns no `BLOCKING` findings. Always launch it in the
+   **background** (`Task` with `background: true`) so work can continue while it
+   runs; handle the verdict when it arrives. Invoke the group's `skeptic`
+   subagent (Task tool; its definition is maintained in the non-public group
+   workspace, not in this public repository) with a prompt such as:
 
    > Review branch `feat/NNNN-slug` against its spec `specs/NNNN-slug.md`
    > (diff base: `master`). Follow the group skeptic checklist and answer in

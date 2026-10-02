@@ -55,6 +55,25 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Entities",
+        "data": {
+          "show_charged": "Show charged sensor",
+          "show_paid": "Show paid sensor",
+          "show_last_payment": "Show last payment sensor",
+          "scan_interval_hours": "Update interval (hours)"
+        },
+        "data_description": {
+          "show_charged": "Create the \"Charged\" sensor (total charged for the period).",
+          "show_paid": "Create the \"Paid\" sensor (total paid for the period).",
+          "show_last_payment": "Create the \"Last payment\" sensor with the amount attribute.",
+          "scan_interval_hours": "How often the account data is polled, between 1 and 24 hours (default 6)."
+        }
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "unpaid_documents": {

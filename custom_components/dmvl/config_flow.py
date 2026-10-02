@@ -15,9 +15,18 @@ from typing import Any
 import httpx
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -25,7 +34,21 @@ from homeassistant.helpers.selector import (
 from pydmvl import ApiError, AuthError
 
 from .client import async_new_client
-from .const import CONF_LOGIN, CONF_PASSWORD, CONF_VERIFY, DEFAULT_VERIFY, DOMAIN
+from .const import (
+    CONF_LOGIN,
+    CONF_PASSWORD,
+    CONF_VERIFY,
+    DEFAULT_VERIFY,
+    DOMAIN,
+    MAX_SCAN_INTERVAL_HOURS,
+    MIN_SCAN_INTERVAL_HOURS,
+    OPTION_SCAN_INTERVAL_HOURS,
+    OPTION_SHOW_CHARGED,
+    OPTION_SHOW_LAST_PAYMENT,
+    OPTION_SHOW_PAID,
+    option_enabled,
+    scan_interval_hours,
+)
 
 LOGIN_SELECTOR = TextSelector(
     TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")
@@ -60,6 +83,12 @@ class DmvlConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the account login config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> DmvlOptionsFlow:
+        """Create the options flow handler (spec 0006 R1)."""
+        return DmvlOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -161,3 +190,45 @@ class DmvlConfigFlow(ConfigFlow, domain=DOMAIN):
         finally:
             await client.close()
         return None
+
+
+class DmvlOptionsFlow(OptionsFlow):
+    """Select the optional entities of the account (spec 0006)."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show and store the optional-entity toggles."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+        entry = self.config_entry
+        options = entry.options
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    OPTION_SHOW_CHARGED,
+                    default=option_enabled(options, OPTION_SHOW_CHARGED),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_PAID,
+                    default=option_enabled(options, OPTION_SHOW_PAID),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_LAST_PAYMENT,
+                    default=option_enabled(options, OPTION_SHOW_LAST_PAYMENT),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SCAN_INTERVAL_HOURS,
+                    default=scan_interval_hours(options),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_SCAN_INTERVAL_HOURS,
+                        max=MAX_SCAN_INTERVAL_HOURS,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="h",
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
