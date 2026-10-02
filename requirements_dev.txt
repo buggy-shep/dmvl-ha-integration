@@ -1,0 +1,10 @@
+# Test tooling (pinned; pytest-homeassistant-custom-component carries the
+# matching homeassistant dev version).
+pytest==8.3.4
+pytest-homeassistant-custom-component==0.13.205
+pytest-cov==6.0.0
+coverage==7.6.8
+
+# Runtime dependency (also pinned in custom_components/dmvl/manifest.json);
+# consumed from PyPI as an exact release.
+pydmvl==0.1.0

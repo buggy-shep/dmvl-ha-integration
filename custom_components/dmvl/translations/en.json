@@ -1,0 +1,79 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Configuration was updated."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the account service.",
+      "invalid_auth": "Invalid login or password.",
+      "unknown": "Unexpected error."
+    },
+    "step": {
+      "reauth_confirm": {
+        "data": {
+          "login": "Login",
+          "password": "Password",
+          "verify": "Verify TLS certificate"
+        },
+        "data_description": {
+          "login": "The account login this integration is set up for.",
+          "password": "Re-enter the account password. The service sends the credentials with every request, so the password is stored in Home Assistant.",
+          "verify": "Require a valid TLS certificate chain. Disable this only if the service certificate chain is incomplete."
+        },
+        "description": "Unofficial, community-built integration. Not affiliated with, endorsed by, or sponsored by the service operator. Use it with your own account only.",
+        "title": "Re-authenticate Domovladelets"
+      },
+      "reconfigure": {
+        "data": {
+          "login": "Login",
+          "password": "Password",
+          "verify": "Verify TLS certificate"
+        },
+        "data_description": {
+          "login": "The account login; changing it moves the entry to that account.",
+          "password": "The account password. The service sends the credentials with every request, so the password is stored in Home Assistant.",
+          "verify": "Require a valid TLS certificate chain. Disable this only if the service certificate chain is incomplete."
+        },
+        "description": "Unofficial, community-built integration. Not affiliated with, endorsed by, or sponsored by the service operator. Use it with your own account only.",
+        "title": "Reconfigure Domovladelets"
+      },
+      "user": {
+        "data": {
+          "login": "Login",
+          "password": "Password",
+          "verify": "Verify TLS certificate"
+        },
+        "data_description": {
+          "login": "Your account login, as used in the Domovladelets app.",
+          "password": "Your account password. The service sends the credentials with every request, so the password is stored in Home Assistant.",
+          "verify": "Require a valid TLS certificate chain. Disable this only if the service certificate chain is incomplete."
+        },
+        "description": "Unofficial, community-built integration. Not affiliated with, endorsed by, or sponsored by the service operator. Use it with your own account only.",
+        "title": "Log in to Domovladelets"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "unpaid_documents": {
+        "name": "Unpaid documents"
+      }
+    },
+    "sensor": {
+      "amount_due": {
+        "name": "Amount due"
+      },
+      "charged": {
+        "name": "Charged"
+      },
+      "last_payment": {
+        "name": "Last payment"
+      },
+      "paid": {
+        "name": "Paid"
+      }
+    }
+  }
+}

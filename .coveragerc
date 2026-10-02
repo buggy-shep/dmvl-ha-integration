@@ -1,0 +1,10 @@
+[run]
+branch = True
+source = custom_components/dmvl
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if sys.version_info

@@ -1,0 +1,16 @@
+{
+  "domain": "dmvl",
+  "name": "Domovladelets",
+  "codeowners": [
+    "@buggy-shep"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/buggy-shep/dmvl-ha-integration",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/buggy-shep/dmvl-ha-integration/issues",
+  "requirements": [
+    "pydmvl==0.1.0"
+  ],
+  "version": "0.1.0"
+}
