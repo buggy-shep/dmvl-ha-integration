@@ -81,8 +81,8 @@
       }
     },
     "sensor": {
-      "amount_due": {
-        "name": "К оплате"
+      "account": {
+        "name": "Лицевой счёт"
       },
       "charged": {
         "name": "Начислено"

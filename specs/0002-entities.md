@@ -27,12 +27,13 @@ amounts, receipt links) is deferred to later specs.
   transient condition). `entry.runtime_data` holds the client and coordinator;
   `async_unload_entry` closes the client.
 - R3 (MUST) Exactly one HA device per config entry, identified by
-  `(DOMAIN, entry.entry_id)`, manufacturer `Domovladelets`, model `Account`,
-  and a fixed device name. No account data is used as the device name or
-  identifiers.
+  `(DOMAIN, entry.entry_id)`, manufacturer `Domovladelets`, model `Account`.
+  The device name was a fixed constant in this spec; it is now derived from
+  the account (see spec 0005 R1 and spec 0011 R1, which supersede this point).
 - R4 (MUST) Entities (per account), all `has_entity_name` with stable unique
   ids `f"{entry.entry_id}_{suffix}"` and device info from R3:
-  - `sensor` **Amount due** = `personal_account.debt_current`, monetary (RUB);
+  - `sensor` **Account** = `personal_account.debt_current` as reported
+    (negative = to pay, positive = overpayment), monetary (RUB);
   - `sensor` **Charged** = `personal_account.charged`, monetary (RUB);
   - `sensor` **Paid** = `personal_account.paid`, monetary (RUB);
   - `binary_sensor` **Unpaid documents** = `Session.has_unpaid_documents`,
@@ -65,8 +66,9 @@ amounts, receipt links) is deferred to later specs.
 - Entities read `coordinator.data` (a `pydmvl.models.Session`). Monetary values
   are `Decimal` and rendered as-is. The last-payment sensor uses
   `SensorDeviceClass.TIMESTAMP` and exposes `{"amount": ...}` as attributes.
-- The device name is the constant `"Domovladelets"`; per-entry uniqueness comes
-  from the identifiers.
+- The device name is the account name (superseded details: spec 0005 added the
+  account-derived name; spec 0011 makes it `<organization> · <login>`);
+  per-entry uniqueness comes from the identifiers.
 
 ## API
 
@@ -100,4 +102,8 @@ amounts, receipt links) is deferred to later specs.
 
 `implemented` (phase-3 entry decisions recorded in the group plan, 2026-10-01,
 including the minimal default set and the fixed device name; implemented
-2026-10-02 as the first Phase-3 slice).
+2026-10-02 as the first Phase-3 slice). The **Amount due** sensor was renamed to
+**Account** and its device name and balance semantics were refined by spec 0011
+(`<organization> · <login>`, raw sign), after spec 0010 added the account
+attributes; this spec's R3/R4 statements on the name and sensor are superseded
+where they conflict.

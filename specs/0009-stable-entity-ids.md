@@ -49,8 +49,9 @@ change.
 ## Test plan
 
 - Register an account: the entity ids are exactly
-  `sensor.dmvl_<login-slug>_amount_due` (and siblings), independent of the
-  device name; churn the snapshot name and confirm the ids do not change.
+  `sensor.dmvl_<login-slug>_account` (suffix renamed from `amount_due` by spec
+  0011, and siblings), independent of the device name; churn the snapshot name
+  and confirm the ids do not change.
 - Two accounts get different, login-derived ids.
 - Unique ids and device identifiers remain entry-based.
 

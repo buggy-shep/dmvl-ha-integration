@@ -24,7 +24,10 @@ Home Assistant.
 
 The integration polls the account screen on a schedule and exposes:
 
-- **Amount due** — the outstanding balance shown as "to pay".
+- **Account** — the account balance, shown as reported by the service. A
+  negative value is the amount to pay; a positive value is an overpayment. Also
+  carries the account identity, address, contacts, amounts and counts as
+  attributes.
 - **Charged** — the total charged for the current period.
 - **Paid** — the total paid for the current period.
 - **Unpaid documents** — a `binary_sensor` that turns on when any document is
@@ -79,15 +82,16 @@ Turn it on to require a valid certificate chain if your setup supports it.
 
 | Entity | Type | Description |
 |---|---|---|
-| Amount due | `sensor` | Outstanding balance ("to pay"); also the account sensor with identity/address/contacts/amounts/counts attributes |
+| Account | `sensor` | Account balance as reported (negative = to pay, positive = overpayment); also carries identity/address/contacts/amounts/counts attributes |
 | Charged | `sensor` | Total charged for the current period; `period` and `payment_purpose` attributes |
 | Paid | `sensor` | Total paid for the current period; `period`, `payment_purpose`, `last_payment_date` and `payments` attributes |
 | Unpaid documents | `binary_sensor` | On when a document is unpaid |
 | Last payment | `sensor` | Date of the latest payment (`amount` attribute) |
 
 The account is represented as a single Home Assistant device named after the
-account (the name reported by the service, falling back to the login); all
-entities belong to it. Entity ids are stable and account-specific
+management organization and the account code (`<organization> · <account>`,
+falling back to the login, then to a constant); all entities belong to it.
+Entity ids are stable and account-specific
 (`<platform>.dmvl_<login-slug>_<suffix>`, e.g. `sensor.dmvl_user_example_com_paid`),
 independent of the device name and area.
 
@@ -95,7 +99,7 @@ independent of the device name and area.
 
 The account options (*Settings → Devices & Services → Domovladelets →
 Configure*) let you hide the **Charged**, **Paid** and **Last payment**
-entities. **Amount due** and **Unpaid documents** are always created.
+entities. **Account** and **Unpaid documents** are always created.
 
 ## Data updates
 
@@ -110,7 +114,7 @@ Account data is read-only and refreshed:
   ```yaml
   action: dmvl.refresh
   target:
-    entity_id: sensor.amount_due
+    entity_id: sensor.dmvl_user_example_com_account
   ```
 
   Without a target the action refreshes every configured account.

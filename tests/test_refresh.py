@@ -71,7 +71,7 @@ async def test_refresh_service_with_entity_target(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     entry, handler = await _setup(hass, monkeypatch)
-    amount_due = entity_id(hass, entry, "sensor", "amount_due")
+    amount_due = entity_id(hass, entry, "sensor", "account")
     requests_before = len(handler.requests)
 
     await hass.services.async_call(

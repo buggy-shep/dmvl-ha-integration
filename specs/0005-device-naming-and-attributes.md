@@ -18,16 +18,17 @@ account period and the charge/payment rows.
 
 ## Requirements
 
-- R1 (MUST) Device name: the account name from the snapshot (`Session.name`),
-  falling back to the account login when the name is absent, then to
-  `Domovladelets`. Two accounts therefore get distinct default names.
+- R1 (MUST — name format revised by spec 0011 R4) Device name: the account name
+  from the snapshot (`Session.name`), falling back to the account login when the
+  name is absent, then to `Domovladelets`. The primary form is replaced by
+  `"<organization> · <account code>"` (spec 0011 R4); the fallback chain stays.
 - R2 (MUST) The device name must be derived from data only — no secret is
   exposed beyond what the user's own account already reveals; the device
   registry already contains the account login via the config entry title, so
   the account name is not additional exposure.
 - R3 (MUST) Money sensors carry explanatory attributes:
-  - `amount_due`: `period` (the account `fun_date`, the calculation date) when
-    present;
+  - the account sensor (suffix `account`, renamed from `amount_due` by spec
+    0011): `period` (the account `fun_date`, the calculation date) when present;
   - `charged` / `paid`: `period` (the latest `history_charges[]` `ist_date`)
     when present;
   - all three: `payment_purpose` (the API `textOplUsl`) when present.
@@ -78,3 +79,5 @@ to the account name; entity attributes gain `period` and `payment_purpose`.
 `implemented` (2026-10-02) — device name from `Session.name` with login/
 constant fallback; money sensors expose `period`/`payment_purpose` and drop
 `state_class`; tests cover the fallbacks, attributes and two-account case.
+The device name format (R1) was later revised by spec 0011 R4 to
+`"<organization> · <account code>"`; the fallback chain is unchanged.

@@ -5,10 +5,10 @@ polling coordinator that feeds the sensor and binary-sensor entities. The
 service is stateless (credentials travel with every request), so the account
 login and password are stored in the config entry and used to open the
 in-memory session; they are never logged. Authentication failures trigger
-reauth; connectivity failures retry; unloading closes the client. The account
-name from the snapshot names the HA device (spec 0005); an options flow selects
-the optional entities and the polling interval (spec 0006); `dmvl.refresh`
-updates data on demand (spec 0007).
+reauth; connectivity failures retry; unloading closes the client. The
+management organization and the account code name the HA device (spec 0011 R4);
+an options flow selects the optional entities and the polling interval
+(spec 0006); `dmvl.refresh` updates data on demand (spec 0007).
 """
 
 from __future__ import annotations
@@ -57,12 +57,17 @@ class DmvlRuntimeData:
 
 
 def account_device_name(session: Session) -> str:
-    """HA device name for the account (spec 0005 R1).
+    """HA device name for the account (spec 0005 R1, spec 0011).
 
-    Prefers the account name from the snapshot, falls back to the login, then
-    to the constant. Using data makes two accounts distinguishable in the UI.
+    The snapshot name is the management organization, not the account, so the
+    account code (login) is appended to keep two accounts of the same
+    organization distinguishable: ``<organization> · <login>``.
     """
-    return session.name or session.login or DEVICE_NAME
+    organization = session.name
+    login = session.login
+    if organization and login:
+        return f"{organization} · {login}"
+    return organization or login or DEVICE_NAME
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -24,8 +24,9 @@ options mechanism so the entity set can grow without cluttering the registry.
   - `show_last_payment` — "Last payment" sensor (default on).
 - R1b (MUST) The options flow also exposes `scan_interval_hours` (integer,
   1–24, default 6) — see spec 0007.
-- R2 (MUST) `amount_due` and `unpaid_documents` are always created (the core of
-  the integration) and cannot be disabled.
+- R2 (MUST) The account sensor and `unpaid_documents` are always created (the
+  core of the integration) and cannot be disabled. The sensor's stable suffix is
+  `account` (renamed from `amount_due` by spec 0011).
 - R3 (MUST) Entity platforms honor the options at setup time: a disabled entity
   is not created; the enabled ones are.
 - R4 (MUST) Saving options reloads the config entry (an update listener), so
@@ -59,7 +60,8 @@ options mechanism so the entity set can grow without cluttering the registry.
 - A disabled toggle results in the entity not existing; toggling back recreates
   it.
 - Entries without options behave as before (all optional entities present).
-- `amount_due`/`unpaid_documents` are always present regardless of options.
+- The account sensor/`unpaid_documents` are always present regardless of
+  options.
 
 ## Acceptance criteria
 

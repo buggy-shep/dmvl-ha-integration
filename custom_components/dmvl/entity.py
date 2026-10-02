@@ -17,7 +17,8 @@ class DmvlEntity(CoordinatorEntity[DmvlDataUpdateCoordinator]):
 
     The device is identified by the config entry id (never the account login),
     so no account data reaches the device registry identifiers; the device
-    *name* is the account name from the snapshot (spec 0005 R1).
+    *name* combines the management organization and the account code
+    (spec 0011 R4).
 
     The entity id is suggested explicitly as `dmvl_<login>_<suffix>`, so it is
     stable and account-specific and does not drift with the user-changeable

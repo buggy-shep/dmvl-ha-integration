@@ -65,11 +65,15 @@ class DmvlMoneySensor(DmvlEntity, SensorEntity):
         return attributes or None
 
 
-class DmvlAmountDueSensor(DmvlMoneySensor):
-    """The account sensor: balance state plus account data (specs 0005, 0010)."""
+class DmvlAccountSensor(DmvlMoneySensor):
+    """The account sensor: balance state plus account data (specs 0011, 0010).
+
+    The state is the raw account balance ``all_debt_c``: a negative value is
+    the amount to pay (a positive value is an overpayment/credit).
+    """
 
     def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry, "amount_due")
+        super().__init__(coordinator, entry, "account")
 
     @property
     def native_value(self) -> Decimal:
@@ -199,7 +203,7 @@ async def async_setup_entry(
     runtime: DmvlRuntimeData = entry.runtime_data
     coordinator = runtime.coordinator
     options = entry.options
-    entities: list[SensorEntity] = [DmvlAmountDueSensor(coordinator, entry)]
+    entities: list[SensorEntity] = [DmvlAccountSensor(coordinator, entry)]
     if option_enabled(options, OPTION_SHOW_CHARGED):
         entities.append(DmvlChargedSensor(coordinator, entry))
     if option_enabled(options, OPTION_SHOW_PAID):

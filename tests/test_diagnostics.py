@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -16,6 +17,11 @@ from tests.conftest import (
     patch_client,
 )
 
+_MANIFEST_PATH = (
+    Path(__file__).parent.parent / "custom_components" / "dmvl" / "manifest.json"
+)
+MANIFEST_VERSION = json.loads(_MANIFEST_PATH.read_text(encoding="utf-8"))["version"]
+
 
 async def test_diagnostics_redacts_credentials(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
@@ -28,7 +34,7 @@ async def test_diagnostics_redacts_credentials(
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert str(result["entry"]["version"]) == "0.3.0"
+    assert str(result["entry"]["version"]) == MANIFEST_VERSION
     assert result["account"]["debt_current"] == 150.0
     assert result["account"]["charged"] == 500.0
     assert result["account"]["paid"] == 350.0

@@ -26,7 +26,7 @@ OPTIONAL_SUFFIXES = [
     ("sensor", "last_payment"),
 ]
 CORE_SUFFIXES = [
-    ("sensor", "amount_due"),
+    ("sensor", "account"),
     ("binary_sensor", "unpaid_documents"),
 ]
 

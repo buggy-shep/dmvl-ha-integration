@@ -22,7 +22,7 @@ from tests.conftest import (
 )
 
 ENTITY_SUFFIXES = {
-    ("sensor", "amount_due"),
+    ("sensor", "account"),
     ("sensor", "charged"),
     ("sensor", "paid"),
     ("sensor", "last_payment"),
@@ -45,8 +45,8 @@ async def test_setup_creates_device_and_entities(
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, entry.entry_id)
     assert len(devices) == 1
-    # device is named after the account from the snapshot (spec 0005 R1)
-    assert devices[0].name == "Synthetic Housing LLC"
+    # device is named after the organization and account code (spec 0011 R1)
+    assert devices[0].name == f"Synthetic Housing LLC · {LOGIN}"
     assert devices[0].manufacturer == "Domovladelets"
     assert devices[0].model == "Account"
 
@@ -99,8 +99,11 @@ async def test_two_entries_get_distinct_device_names(
         dr.async_entries_for_config_entry(registry, e.entry_id)[0].name
         for e in (first, second)
     }
-    # each account gets its own device name from the snapshot
-    assert names == {"Account One", "Account Two"}
+    # each account gets its own device name: organization + account code
+    assert names == {
+        f"Account One · {LOGIN}",
+        "Account Two · other@example.com",
+    }
 
 
 async def test_device_name_falls_back_to_constant(
@@ -180,7 +183,7 @@ async def test_refresh_updates_entities(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    amount_due = entity_id(hass, entry, "sensor", "amount_due")
+    amount_due = entity_id(hass, entry, "sensor", "account")
     assert float(hass.states.get(amount_due).state) == 150.0
 
     handler.payload["personal_account"]["all_debt_c"] = "42.50"
@@ -199,7 +202,7 @@ async def test_refresh_failure_marks_entities_unavailable(
     entry = make_entry(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    amount_due = entity_id(hass, entry, "sensor", "amount_due")
+    amount_due = entity_id(hass, entry, "sensor", "account")
 
     handler.transport_error = httpx.ConnectError("refused")
     await entry.runtime_data.coordinator.async_refresh()

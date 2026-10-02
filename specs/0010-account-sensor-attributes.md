@@ -1,15 +1,14 @@
-# 0010 — Account attributes on the balance sensor
+# 0010 — Account attributes on the account sensor
 
-- **Status:** implemented
+- **Status:** implemented (sensor renamed to **Account** by spec 0011)
 - **Scope:** Home Assistant custom integration `dmvl` (phase 3)
 
 ## Summary
 
-Turn the **Amount due** balance sensor into the account sensor: keep the
-balance as its state and expose the account-screen metadata (account code,
-address, provider, service, period, contact fields, counts) as attributes —
-every scalar value from the login response that is safe to publish in Home
-Assistant state.
+Turn the balance sensor into the account sensor: keep the balance as its state
+and expose the account-screen metadata (account code, address, provider,
+service, period, contact fields, counts) as attributes — every scalar value
+from the login response that is safe to publish in Home Assistant state.
 
 ## Motivation
 
@@ -53,7 +52,7 @@ without extra entities.
 
 ## Design
 
-- `sensor.py` `DmvlAmountDueSensor.extra_state_attributes` builds the dict
+- `sensor.py` `DmvlAccountSensor.extra_state_attributes` builds the dict
   from `coordinator.data` (Session) and its `personal_account`.
 - Money values are floats; `charge_periods`/`payment_count`/`counters`/`receipts`/
   `news` are ints; `unpaid_documents` is a bool.

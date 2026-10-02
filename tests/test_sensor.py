@@ -35,13 +35,26 @@ async def test_money_sensors(
 ) -> None:
     entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
 
-    assert float(_state(hass, entry, "sensor", "amount_due").state) == 150.0
+    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
     assert float(_state(hass, entry, "sensor", "charged").state) == 500.0
     assert float(_state(hass, entry, "sensor", "paid").state) == 350.0
 
-    amount = _state(hass, entry, "sensor", "amount_due")
+    amount = _state(hass, entry, "sensor", "account")
     assert amount.attributes["device_class"] == "monetary"
     assert amount.attributes["unit_of_measurement"] == "RUB"
+
+
+async def test_account_sensor_keeps_negative_balance_sign(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["all_debt_c"] = "-3148.75"
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    # the raw reported balance keeps its sign: a negative value is the amount
+    # to pay and is not normalized to a positive one (spec 0011 R2)
+    assert float(_state(hass, entry, "sensor", "account").state) == -3148.75
 
 
 async def test_account_sensor_exposes_account_attributes(
@@ -63,7 +76,7 @@ async def test_account_sensor_exposes_account_attributes(
     )
     entry = await _setup(hass, monkeypatch, payload)
 
-    attrs = _state(hass, entry, "sensor", "amount_due").attributes
+    attrs = _state(hass, entry, "sensor", "account").attributes
     assert attrs["account_code"] == "user@example.com"
     assert attrs["organization"] == "Synthetic Housing LLC"
     assert attrs["full_name"] == "<full name>"
@@ -94,7 +107,7 @@ async def test_account_sensor_omits_absent_attributes(
 
     entry = await _setup(hass, monkeypatch, payload)
 
-    attrs = _state(hass, entry, "sensor", "amount_due").attributes
+    attrs = _state(hass, entry, "sensor", "account").attributes
     assert "address" not in attrs
     assert "contact_phone" not in attrs
 
@@ -104,7 +117,7 @@ async def test_money_sensors_expose_period_and_purpose(
 ) -> None:
     payload = copy.deepcopy(load_fixture("authentication.json"))
     # distinct dates so the charged/paid override is distinguishable from the
-    # account-level fun_date used by amount_due
+    # account-level fun_date used by the account sensor
     payload["personal_account"]["fun_date"] = "2026-09-01"
     payload["history_charges"] = [
         {"ist_date": "2026-07-01", "ist_nach": "100.00", "ist_opl": "50.00"},
@@ -112,7 +125,7 @@ async def test_money_sensors_expose_period_and_purpose(
     ]
     entry = await _setup(hass, monkeypatch, payload)
 
-    amount = _state(hass, entry, "sensor", "amount_due")
+    amount = _state(hass, entry, "sensor", "account")
     assert amount.attributes["period"] == "2026-09-01"  # fun_date
     assert amount.attributes["payment_purpose"] == "for utilities"
     # charged/paid report the latest charge period (ist_date), not fun_date
@@ -126,7 +139,7 @@ async def test_money_sensors_have_no_cumulative_state_class(
 ) -> None:
     entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
 
-    amount = _state(hass, entry, "sensor", "amount_due")
+    amount = _state(hass, entry, "sensor", "account")
     assert "state_class" not in amount.attributes
 
 
@@ -139,7 +152,7 @@ async def test_money_sensors_omit_missing_attributes(
 
     entry = await _setup(hass, monkeypatch, payload)
 
-    amount = _state(hass, entry, "sensor", "amount_due")
+    amount = _state(hass, entry, "sensor", "account")
     assert "period" not in amount.attributes
     assert "payment_purpose" not in amount.attributes
 
@@ -152,7 +165,7 @@ async def test_money_sensors_report_zero_for_absent_aggregates(
 
     entry = await _setup(hass, monkeypatch, payload)
 
-    assert float(_state(hass, entry, "sensor", "amount_due").state) == 0.0
+    assert float(_state(hass, entry, "sensor", "account").state) == 0.0
     assert float(_state(hass, entry, "sensor", "charged").state) == 0.0
     assert float(_state(hass, entry, "sensor", "paid").state) == 0.0
     assert _state(hass, entry, "sensor", "last_payment").state == "unknown"

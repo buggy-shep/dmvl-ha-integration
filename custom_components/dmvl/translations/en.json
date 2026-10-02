@@ -81,8 +81,8 @@
       }
     },
     "sensor": {
-      "amount_due": {
-        "name": "Amount due"
+      "account": {
+        "name": "Account"
       },
       "charged": {
         "name": "Charged"

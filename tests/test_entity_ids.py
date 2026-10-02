@@ -11,7 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from tests.conftest import AccountHandler, load_fixture, make_entry, patch_client
 
 EXPECTED_IDS = {
-    "sensor.dmvl_user_example_com_amount_due",
+    "sensor.dmvl_user_example_com_account",
     "sensor.dmvl_user_example_com_charged",
     "sensor.dmvl_user_example_com_paid",
     "sensor.dmvl_user_example_com_last_payment",
@@ -77,8 +77,8 @@ async def test_two_accounts_get_distinct_login_derived_ids(
         for reg in registry.entities.values()
         if reg.platform == "dmvl"
     }
-    assert "sensor.dmvl_user_example_com_amount_due" in ids
-    assert "sensor.dmvl_other_example_com_amount_due" in ids
+    assert "sensor.dmvl_user_example_com_account" in ids
+    assert "sensor.dmvl_other_example_com_account" in ids
 
 
 async def test_device_identifiers_use_entry_id(
@@ -108,4 +108,4 @@ async def test_entity_ids_fall_back_to_entry_id_for_empty_login(
         for reg in registry.entities.values()
         if reg.platform == "dmvl"
     }
-    assert f"sensor.dmvl_{entry.entry_id[:8].lower()}_amount_due" in ids
+    assert f"sensor.dmvl_{entry.entry_id[:8].lower()}_account" in ids
