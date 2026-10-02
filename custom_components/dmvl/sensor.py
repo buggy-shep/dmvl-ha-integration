@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -17,7 +19,10 @@ from homeassistant.util import dt as dt_util
 from . import DmvlRuntimeData
 from .const import (
     ATTR_AMOUNT,
+    ATTR_DATE,
+    ATTR_LAST_PAYMENT_DATE,
     ATTR_PAYMENT_PURPOSE,
+    ATTR_PAYMENTS,
     ATTR_PERIOD,
     CURRENCY_RUB,
     OPTION_SHOW_CHARGED,
@@ -39,6 +44,7 @@ class DmvlMoneySensor(DmvlEntity, SensorEntity):
     declared.
     """
 
+    _entity_id_domain = Platform.SENSOR
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = CURRENCY_RUB
 
@@ -91,7 +97,7 @@ class DmvlChargedSensor(DmvlMoneySensor):
 
 
 class DmvlPaidSensor(DmvlMoneySensor):
-    """The total paid for the current period."""
+    """The total paid for the current period (spec 0005 R3, spec 0008)."""
 
     def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "paid")
@@ -101,18 +107,29 @@ class DmvlPaidSensor(DmvlMoneySensor):
         return self.coordinator.data.personal_account.paid
 
     @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
-        """Base attributes plus the latest charge period (spec 0005 R3)."""
-        attributes = super().extra_state_attributes or {}
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Base attributes, latest charge period and payment rows (0008 R1/R2)."""
+        attributes: dict[str, Any] = dict(super().extra_state_attributes or {})
         charges = self.coordinator.data.charges
         if charges and charges[-1].date:
             attributes[ATTR_PERIOD] = charges[-1].date
+        payments = self.coordinator.data.personal_account.payments
+        if payments:
+            attributes[ATTR_PAYMENTS] = [
+                {ATTR_DATE: row.date, ATTR_AMOUNT: float(row.amount)} for row in payments
+            ]
+            latest = payments[-1].date
+            # agree with the Last payment sensor: only a parsable date is
+            # exposed (spec 0008 R5)
+            if latest and dt_util.parse_date(latest) is not None:
+                attributes[ATTR_LAST_PAYMENT_DATE] = latest
         return attributes or None
 
 
 class DmvlLastPaymentSensor(DmvlEntity, SensorEntity):
     """Date of the most recent payment, with the amount as an attribute."""
 
+    _entity_id_domain = Platform.SENSOR
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:

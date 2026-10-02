@@ -7,6 +7,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,6 +21,7 @@ PARALLEL_UPDATES = 0
 class DmvlUnpaidDocumentsBinarySensor(DmvlEntity, BinarySensorEntity):
     """On when any document is unpaid (spec 0002 R4)."""
 
+    _entity_id_domain = Platform.BINARY_SENSOR
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(

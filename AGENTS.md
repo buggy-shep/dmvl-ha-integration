@@ -20,10 +20,16 @@ domain `dmvl`.
 ## 2. Language
 
 All repository text is English: code, comments, docstrings, documentation,
-commit messages, and review notes. Runtime translation files under
-`custom_components/dmvl/translations/*.json` are user-facing content and may be
-written in another language (there is a `ru.json` because the service is used
-in Russia); everything else stays English.
+commit messages, and review notes. Two exceptions are allowed:
+
+- Runtime translation files under `custom_components/dmvl/translations/*.json`
+  are user-facing content and may be written in another language (there is a
+  `ru.json` because the service is used in Russia).
+- The `README.md` may carry a short Russian introduction and disclaimer
+  alongside the English text, matching the `pydmvl` README (planned; the
+  audience of the service is Russian-speaking).
+
+Everything else stays English.
 
 ## 3. Stack and commands
 

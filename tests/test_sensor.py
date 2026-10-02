@@ -113,6 +113,64 @@ async def test_last_payment_sensor(
     assert state.attributes["device_class"] == "timestamp"
 
 
+async def test_paid_sensor_exposes_payment_dates(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
+
+    paid = _state(hass, entry, "sensor", "paid")
+    assert paid.attributes["last_payment_date"] == "2026-09-10"
+    assert paid.attributes["payments"] == [
+        {"date": "2026-08-10", "amount": 200.0},
+        {"date": "2026-09-10", "amount": 150.0},
+    ]
+    # agrees with the Last payment sensor
+    last_payment = _state(hass, entry, "sensor", "last_payment")
+    assert last_payment.state.startswith(paid.attributes["last_payment_date"])
+
+
+async def test_paid_sensor_omits_last_date_when_payment_has_no_date(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["payments"] = [{"fo_sum": "10.00"}]
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    paid = _state(hass, entry, "sensor", "paid")
+    assert "last_payment_date" not in paid.attributes
+    assert paid.attributes["payments"] == [{"date": "", "amount": 10.0}]
+
+
+async def test_paid_sensor_omits_last_date_for_unparsable_date(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["payments"] = [
+        {"fo_date": "not-a-date", "fo_sum": "10.00"}
+    ]
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    paid = _state(hass, entry, "sensor", "paid")
+    # agrees with the Last payment sensor, which is unknown for this date
+    assert "last_payment_date" not in paid.attributes
+    assert _state(hass, entry, "sensor", "last_payment").state == "unknown"
+
+
+async def test_paid_sensor_omits_payment_attributes_without_payments(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["payments"] = []
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    paid = _state(hass, entry, "sensor", "paid")
+    assert "last_payment_date" not in paid.attributes
+    assert "payments" not in paid.attributes
+
+
 async def test_last_payment_is_unknown_without_payments(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -70,13 +70,15 @@ Turn it on to require a valid certificate chain if your setup supports it.
 |---|---|---|
 | Amount due | `sensor` | Outstanding balance ("to pay"); `period` and `payment_purpose` attributes |
 | Charged | `sensor` | Total charged for the current period; `period` and `payment_purpose` attributes |
-| Paid | `sensor` | Total paid for the current period; `period` and `payment_purpose` attributes |
+| Paid | `sensor` | Total paid for the current period; `period`, `payment_purpose`, `last_payment_date` and `payments` attributes |
 | Unpaid documents | `binary_sensor` | On when a document is unpaid |
 | Last payment | `sensor` | Date of the latest payment (`amount` attribute) |
 
 The account is represented as a single Home Assistant device named after the
 account (the name reported by the service, falling back to the login); all
-entities belong to it.
+entities belong to it. Entity ids are stable and account-specific
+(`<platform>.dmvl_<login-slug>_<suffix>`, e.g. `sensor.dmvl_user_example_com_paid`),
+independent of the device name and area.
 
 ### Optional entities
 
@@ -113,6 +115,8 @@ Account data is read-only and refreshed:
 
 ## Roadmap
 
+- A short Russian introduction and disclaimer alongside the English text, as
+  in the `pydmvl` README.
 - Meter readings (read-only) and their submission period.
 - Per-segment amount due and receipt links.
 

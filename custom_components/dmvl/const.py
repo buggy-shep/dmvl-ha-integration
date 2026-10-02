@@ -39,8 +39,11 @@ SERVICE_REFRESH: Final = "refresh"
 CURRENCY_RUB: Final = "RUB"
 
 ATTR_AMOUNT: Final = "amount"
+ATTR_DATE: Final = "date"
 ATTR_PERIOD: Final = "period"
 ATTR_PAYMENT_PURPOSE: Final = "payment_purpose"
+ATTR_LAST_PAYMENT_DATE: Final = "last_payment_date"
+ATTR_PAYMENTS: Final = "payments"
 
 
 def option_enabled(options: Mapping[str, Any], key: str) -> bool:
