@@ -7,4 +7,4 @@ coverage==7.6.8
 
 # Runtime dependency (also pinned in custom_components/dmvl/manifest.json);
 # consumed from PyPI as an exact release.
-pydmvl==0.1.0
+pydmvl==0.2.0

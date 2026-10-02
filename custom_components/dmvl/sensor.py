@@ -66,7 +66,7 @@ class DmvlMoneySensor(DmvlEntity, SensorEntity):
 
 
 class DmvlAmountDueSensor(DmvlMoneySensor):
-    """The outstanding balance shown as "to pay"."""
+    """The account sensor: balance state plus account data (specs 0005, 0010)."""
 
     def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry, "amount_due")
@@ -74,6 +74,43 @@ class DmvlAmountDueSensor(DmvlMoneySensor):
     @property
     def native_value(self) -> Decimal:
         return self.coordinator.data.personal_account.debt_current
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Account attributes from the login response (spec 0010 R2)."""
+        session = self.coordinator.data
+        summary = session.personal_account
+        account = session.account
+        attributes: dict[str, Any] = {}
+
+        def put(key: str, value: Any) -> None:
+            if value is not None and value != "":
+                attributes[key] = value
+
+        put("account_code", session.login)
+        put("organization", account.organization)
+        put("database", account.database)
+        put("address", account.address)
+        put("flat", account.flat)
+        put("management_key", account.management_key)
+        put("developer_email", account.developer_email)
+        put("contact_email", account.contact_email)
+        put("contact_phone", account.phone)
+        put("full_name", account.full_name)
+        put("period", summary.period)
+        put("payment_purpose", summary.payment_purpose)
+        put("opening_balance", float(summary.debt_opening))
+        put("charged", float(summary.charged))
+        put("adjustment", float(summary.difference))
+        put("paid", float(summary.paid))
+        put("closing_balance", float(summary.debt_closing))
+        put("unpaid_documents", session.has_unpaid_documents)
+        put("charge_periods", account.charges)
+        put("payment_count", account.payments)
+        put("counters", account.counters)
+        put("receipts", account.receipts)
+        put("news", account.news)
+        return attributes or None
 
 
 class DmvlChargedSensor(DmvlMoneySensor):

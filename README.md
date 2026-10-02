@@ -5,6 +5,17 @@ account. It signs in with your account credentials and polls the account screen
 for outstanding charges and recent payments, exposing them as Home Assistant
 entities.
 
+## Домовладелец для Home Assistant
+
+Неофициальная интеграция Home Assistant для личного кабинета
+«Домовладелец»: вход по логину и паролю вашего аккаунта, периодический опрос
+экрана личного кабинета и публикация начислений и платежей в виде сущностей
+Home Assistant.
+
+> **Неофициальная интеграция.** Проект не связан с оператором приложения
+> «Домовладелец», не одобрен и не спонсируется им. Используйте только со
+> своим аккаунтом, на свой риск.
+
 > **Unofficial.** This project is not affiliated with, endorsed by, or
 > sponsored by the operator of the "Domovladelets" application. Use it with
 > your own account only, at your own risk.
@@ -68,7 +79,7 @@ Turn it on to require a valid certificate chain if your setup supports it.
 
 | Entity | Type | Description |
 |---|---|---|
-| Amount due | `sensor` | Outstanding balance ("to pay"); `period` and `payment_purpose` attributes |
+| Amount due | `sensor` | Outstanding balance ("to pay"); also the account sensor with identity/address/contacts/amounts/counts attributes |
 | Charged | `sensor` | Total charged for the current period; `period` and `payment_purpose` attributes |
 | Paid | `sensor` | Total paid for the current period; `period`, `payment_purpose`, `last_payment_date` and `payments` attributes |
 | Unpaid documents | `binary_sensor` | On when a document is unpaid |
@@ -115,8 +126,6 @@ Account data is read-only and refreshed:
 
 ## Roadmap
 
-- A short Russian introduction and disclaimer alongside the English text, as
-  in the `pydmvl` README.
 - Meter readings (read-only) and their submission period.
 - Per-segment amount due and receipt links.
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -41,6 +42,61 @@ async def test_money_sensors(
     amount = _state(hass, entry, "sensor", "amount_due")
     assert amount.attributes["device_class"] == "monetary"
     assert amount.attributes["unit_of_measurement"] == "RUB"
+
+
+async def test_account_sensor_exposes_account_attributes(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload.update(
+        {
+            "name": "Synthetic Housing LLC",
+            "db": "kp.synthetic",
+            "maddr": "Synthetic street, 1",
+            "mflat": "  7  ",
+            "mgfkey": "<mgfkey>",
+            "dev_email": "support@example.invalid",
+            "memail": "resident@example.invalid",
+            "fls_fio": "<full name>",
+            "usersInfo": {"phone": "<phone>", "email": "resident@example.invalid"},
+        }
+    )
+    entry = await _setup(hass, monkeypatch, payload)
+
+    attrs = _state(hass, entry, "sensor", "amount_due").attributes
+    assert attrs["account_code"] == "user@example.com"
+    assert attrs["organization"] == "Synthetic Housing LLC"
+    assert attrs["full_name"] == "<full name>"
+    assert attrs["address"] == "Synthetic street, 1"
+    assert attrs["flat"] == "7"
+    assert attrs["contact_phone"] == "<phone>"
+    assert attrs["period"] == "2026-09-01"
+    assert isinstance(attrs["charged"], float)
+    assert attrs["charged"] == 500.0
+    assert isinstance(attrs["paid"], float)
+    assert attrs["paid"] == 350.0
+    assert attrs["unpaid_documents"] is True
+    assert isinstance(attrs["receipts"], int) and not isinstance(attrs["receipts"], bool)
+    assert attrs["receipts"] == 1
+    # never expose the password, the password hash, or the raw snapshot
+    dumped = json.dumps(attrs)
+    assert "<hash>" not in dumped
+    assert "correct-horse-battery-staple" not in dumped
+    assert "raw" not in attrs
+
+
+async def test_account_sensor_omits_absent_attributes(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    for key in ("maddr", "mflat", "dev_email", "usersInfo"):
+        payload.pop(key, None)
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    attrs = _state(hass, entry, "sensor", "amount_due").attributes
+    assert "address" not in attrs
+    assert "contact_phone" not in attrs
 
 
 async def test_money_sensors_expose_period_and_purpose(

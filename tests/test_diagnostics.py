@@ -28,7 +28,7 @@ async def test_diagnostics_redacts_credentials(
 
     result = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert str(result["entry"]["version"]) == "0.2.1"
+    assert str(result["entry"]["version"]) == "0.3.0"
     assert result["account"]["debt_current"] == 150.0
     assert result["account"]["charged"] == 500.0
     assert result["account"]["paid"] == 350.0
