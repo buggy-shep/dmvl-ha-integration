@@ -35,16 +35,17 @@ balance aggregates.
     `counter_<slug(serial)>` (`serial` is `Counter.serial`, i.e. `sch_id`);
   - name: `Counter.name` when set, else `Counter.service`, else the serial;
   - state: `Counter.current_reading.reading` when an actual reading exists,
-    otherwise `unknown`;
+    otherwise the latest reading by period (spec 0014 R2), else `unknown`;
   - attributes: `serial` (`sch_id`), `service` (`st_name`), `checked`
     (`sch_date_c`), a `readings` list (each
     `{period_start, period_end, reading, volume, kind, is_actual}`), and the
     submission window `submit_period_start`/`submit_period_end`/
     `submit_period_active` derived from
     `AccountInfo.settings.first_day_counters_values` /
-    `last_day_counters_values`; when an actual reading exists, its
-    `volume` (`sp_val`), `kind` (`sp_type`) and
-    `period_start`/`period_end` (`sp_date_b`/`sp_date_e`) are also exposed.
+    `last_day_counters_values`; the selected reading's `volume` (`sp_val`),
+    `kind` (`sp_type`) and `period_start`/`period_end`
+    (`sp_date_b`/`sp_date_e`) are also exposed, plus a top-level `is_actual`
+    for the selected reading (spec 0014 R3).
 - R3 (MUST) When `show_receipts` is on, create a `sensor` with suffix
   `receipts`: state is the number of `Session.receipts`; attributes expose the
   `receipts` list with `{kind, name, link}` for each

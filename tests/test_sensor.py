@@ -299,6 +299,7 @@ async def test_meter_sensors_expose_reading_and_attributes(
     assert water.attributes["submit_period_start"] == 15
     assert water.attributes["submit_period_end"] == 23
     assert isinstance(water.attributes["submit_period_active"], bool)
+    assert water.attributes["is_actual"] is True
     assert len(water.attributes["readings"]) == 2
     assert water.attributes["readings"][-1]["is_actual"] is True
 
@@ -307,12 +308,81 @@ async def test_meter_sensors_expose_reading_and_attributes(
     assert power.attributes["kind"] == "electricity"
 
 
-async def test_meter_sensor_unknown_without_actual_reading(
+async def test_meter_sensor_falls_back_to_latest_reading(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = copy.deepcopy(load_fixture("authentication.json"))
     for value in payload["counters"][0]["values"]:
         value["isActual"] = False
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    state = _state(hass, entry, "sensor", "counter_<meter-1>")
+    # no reading is marked actual -> the latest period (2026-09-23)
+    assert float(state.state) == 124.0
+    assert state.attributes["is_actual"] is False
+    # the fallback reading's own fields are surfaced too (spec 0014 R3)
+    assert state.attributes["volume"] == 4.0
+    assert state.attributes["kind"] == "water"
+    assert state.attributes["period_end"] == "2026-09-23"
+
+
+async def test_meter_sensor_prefers_older_actual_over_newer_reading(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["counters"][0]["values"] = [
+        {
+            "sp_date_b": "2026-09-01",
+            "sp_date_e": "2026-09-30",
+            "sp_pok": "999.0",
+            "sp_val": "1.0",
+            "sp_type": "water",
+            "isActual": False,
+        },
+        {
+            "sp_date_b": "2026-08-01",
+            "sp_date_e": "2026-08-31",
+            "sp_pok": "120.0",
+            "sp_val": "4.0",
+            "sp_type": "water",
+            "isActual": True,
+        },
+    ]
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    state = _state(hass, entry, "sensor", "counter_<meter-1>")
+    assert float(state.state) == 120.0
+    assert state.attributes["is_actual"] is True
+    assert state.attributes["period_end"] == "2026-08-31"
+
+
+async def test_meter_sensor_picks_latest_regardless_of_order(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    values = payload["counters"][0]["values"]
+    for value in values:
+        value["isActual"] = False
+    values.reverse()
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    assert float(_state(hass, entry, "sensor", "counter_<meter-1>").state) == 124.0
+
+
+async def test_meter_sensor_unknown_without_readings(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["counters"][0]["values"] = []
 
     entry = await _setup(
         hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}

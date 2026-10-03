@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
-from pydmvl import Counter
+from pydmvl import Counter, CounterReading
 
 from . import DmvlRuntimeData
 from .const import (
@@ -77,6 +77,16 @@ from .entity import DmvlEntity
 
 # Read-only state from the shared coordinator; no outbound action.
 PARALLEL_UPDATES = 0
+
+
+def _reading_order_key(reading: CounterReading) -> tuple[str, str]:
+    """Sort key for reading recency: by period end, then period start.
+
+    ISO dates compare lexicographically. A missing period end yields the
+    smallest key, so such a reading is picked only when it is the sole one
+    (spec 0014 R2). ``period_start`` is a secondary tiebreaker.
+    """
+    return (reading.period_end or "", reading.period_start or "")
 
 
 class DmvlMoneySensor(DmvlEntity, SensorEntity):
@@ -266,6 +276,22 @@ class DmvlCounterSensor(DmvlEntity, SensorEntity):
                 return counter
         return None
 
+    def _selected_reading(self, counter: Counter) -> tuple[CounterReading | None, bool]:
+        """The actual reading, else the latest one (spec 0014 R1/R2).
+
+        Returns the reading and whether it is the actual one. The latest
+        reading is chosen by ``period_end`` (missing dates sort last); an empty
+        history yields ``(None, False)``.
+        """
+        actual = counter.current_reading
+        if actual is not None:
+            return actual, True
+        latest: CounterReading | None = None
+        for reading in counter.readings:
+            if latest is None or _reading_order_key(reading) > _reading_order_key(latest):
+                latest = reading
+        return latest, False
+
     @property
     def available(self) -> bool:
         return super().available and self._counter() is not None
@@ -273,7 +299,9 @@ class DmvlCounterSensor(DmvlEntity, SensorEntity):
     @property
     def native_value(self) -> float | None:
         counter = self._counter()
-        reading = counter.current_reading if counter is not None else None
+        if counter is None:
+            return None
+        reading, _ = self._selected_reading(counter)
         return float(reading.reading) if reading is not None else None
 
     @property
@@ -291,12 +319,13 @@ class DmvlCounterSensor(DmvlEntity, SensorEntity):
         put(ATTR_SERIAL, self._serial)
         put(ATTR_SERVICE, counter.service)
         put(ATTR_CHECKED, counter.checked)
-        current = counter.current_reading
-        if current is not None:
-            put(ATTR_VOLUME, float(current.volume))
-            put(ATTR_KIND, current.kind)
-            put(ATTR_PERIOD_START, current.period_start)
-            put(ATTR_PERIOD_END, current.period_end)
+        selected, is_actual = self._selected_reading(counter)
+        if selected is not None:
+            put(ATTR_VOLUME, float(selected.volume))
+            put(ATTR_KIND, selected.kind)
+            put(ATTR_PERIOD_START, selected.period_start)
+            put(ATTR_PERIOD_END, selected.period_end)
+            attributes[ATTR_IS_ACTUAL] = is_actual
         put(
             ATTR_READINGS,
             [

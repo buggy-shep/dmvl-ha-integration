@@ -103,9 +103,10 @@ are always created; everything else is opt-in:
 
 - **Charged**, **Paid**, **Last payment** — the per-period aggregates
   (enabled by default);
-- **Meters** — one `sensor` per meter: the latest reading as the state, with
-  `volume`, `kind`, `period_start`/`period_end`, `checked`, a `readings`
-  history, and the monthly submission window
+- **Meters** — one `sensor` per meter: the state is the reading the service
+  marks as actual, falling back to the most recent period when none is marked;
+  attributes include `volume`, `kind`, `period_start`/`period_end`, `checked`,
+  `is_actual`, a `readings` history, and the monthly submission window
   (`submit_period_start`/`submit_period_end`/`submit_period_active`);
 - **Receipts** — a `sensor` whose state is the number of receipts and whose
   `receipts` attribute lists `{kind, name, link}`
