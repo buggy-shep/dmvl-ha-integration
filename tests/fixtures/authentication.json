@@ -6,9 +6,9 @@
   "hash": "<hash>",
   "personal_account": {
     "fun_date": "2026-09-01",
-    "all_debt_b": "100.00",
-    "all_debt_c": "150.00",
-    "all_debt_e": "150.00",
+    "all_debt_b": "-100.00",
+    "all_debt_c": "-150.00",
+    "all_debt_e": "-150.00",
     "all_nach": "500.00",
     "all_opl": "350.00",
     "all_raz": "0.00",
@@ -28,11 +28,15 @@
     {
       "ist_date": "2026-08-01",
       "ist_nach": "250.00",
-      "ist_opl": "250.00"
+      "ist_nach100": "230.00",
+      "ist_raz": "-20.00",
+      "ist_opl": "230.00"
     },
     {
       "ist_date": "2026-09-01",
       "ist_nach": "250.00",
+      "ist_nach100": "250.00",
+      "ist_raz": "0.00",
       "ist_opl": "100.00"
     }
   ],

@@ -46,7 +46,7 @@ async def test_money_sensors(
 ) -> None:
     entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
 
-    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
+    assert float(_state(hass, entry, "sensor", "account").state) == -150.0
     assert float(_state(hass, entry, "sensor", "charged").state) == 500.0
     assert float(_state(hass, entry, "sensor", "paid").state) == 350.0
 
@@ -158,7 +158,7 @@ async def test_money_sensors_omit_missing_attributes(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = copy.deepcopy(load_fixture("authentication.json"))
-    payload["personal_account"] = {"all_debt_c": "10.00"}
+    payload["personal_account"] = {"all_debt_c": "-10.00"}
     payload["history_charges"] = []
 
     entry = await _setup(hass, monkeypatch, payload)
@@ -546,7 +546,7 @@ async def test_due_segments_failure_keeps_core_available(
     await hass.async_block_till_done()
 
     # the account snapshot is still valid and served
-    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
+    assert float(_state(hass, entry, "sensor", "account").state) == -150.0
     segments = _state(hass, entry, "sensor", "due_segments")
     assert segments.state == "unavailable"
 
@@ -589,7 +589,7 @@ async def test_due_segments_refresh_failure_only_disables_segments(
     await hass.async_block_till_done()
 
     assert entry.runtime_data.coordinator.last_update_success is True
-    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
+    assert float(_state(hass, entry, "sensor", "account").state) == -150.0
     assert _state(hass, entry, "sensor", "due_segments").state == "unavailable"
 
 

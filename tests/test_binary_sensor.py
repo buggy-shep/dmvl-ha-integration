@@ -41,10 +41,41 @@ async def test_unpaid_documents_is_off_when_settled(
     payload = copy.deepcopy(load_fixture("authentication.json"))
     payload["personal_account"]["all_debt_c"] = "0.00"
     payload["history_charges"] = [
-        {"ist_date": "2026-09-01", "ist_nach": "250.00", "ist_opl": "250.00"}
+        {
+            "ist_date": "2026-09-01",
+            "ist_nach": "250.00",
+            "ist_nach100": "250.00",
+            "ist_opl": "250.00",
+        }
     ]
 
     entry = await _setup(hass, monkeypatch, payload)
 
     state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
     assert state.state == "off"
+
+
+async def test_unpaid_documents_is_on_from_signed_balance_only(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The signed balance shows debt even though every period is settled.
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["history_charges"][1]["ist_opl"] = "250.00"
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
+    assert state.state == "on"
+
+
+async def test_unpaid_documents_is_on_from_unpaid_period_only(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No account-level debt, but one period is not settled.
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["all_debt_c"] = "0.00"
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
+    assert state.state == "on"

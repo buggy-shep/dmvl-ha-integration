@@ -40,7 +40,7 @@ async def test_setup_creates_device_and_entities(
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert entry.runtime_data.coordinator.data.personal_account.debt_current == 150
+    assert entry.runtime_data.coordinator.data.personal_account.debt_current == -150
 
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, entry.entry_id)
@@ -184,13 +184,13 @@ async def test_refresh_updates_entities(
     await hass.async_block_till_done()
 
     amount_due = entity_id(hass, entry, "sensor", "account")
-    assert float(hass.states.get(amount_due).state) == 150.0
+    assert float(hass.states.get(amount_due).state) == -150.0
 
-    handler.payload["personal_account"]["all_debt_c"] = "42.50"
+    handler.payload["personal_account"]["all_debt_c"] = "-42.50"
     await entry.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert float(hass.states.get(amount_due).state) == 42.5
+    assert float(hass.states.get(amount_due).state) == -42.5
     assert entry.runtime_data.coordinator.last_update_success is True
 
 
