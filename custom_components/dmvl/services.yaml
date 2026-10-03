@@ -3,6 +3,7 @@ refresh:
   description: >-
     Fetch the account data immediately instead of waiting for the next
     scheduled poll. Without a target, every configured account is refreshed.
+    The action stays available across a config entry reload.
   target:
     entity:
       integration: dmvl

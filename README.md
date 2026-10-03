@@ -119,6 +119,11 @@ Account data is read-only and refreshed:
 
   Without a target the action refreshes every configured account.
 
+  The action stays available across a config entry reload (options change or
+  `homeassistant.reload_config_entry`); a reload no longer drops it. It is
+  registered while an account is configured, so callers do not need to restart
+  Home Assistant to use it.
+
 ## Removal
 
 1. In Home Assistant, go to *Settings → Devices & Services*, select

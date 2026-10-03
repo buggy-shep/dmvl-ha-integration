@@ -26,9 +26,11 @@ the service, and a service lets automations pull fresh data after a payment.
 - R4 (MUST) The integration registers a `dmvl.refresh` service. Without a
   target it refreshes every loaded `dmvl` entry; with an entity/device target
   it refreshes the entry(ies) owning that target.
-- R5 (MUST) The service is registered once (in `async_setup`), stays available
-  while at least one entry is loaded, and is removed in `async_unload_entry`
-  when no loaded `dmvl` entry remains.
+- R5 (MUST — revised by spec 0012) The service is registered once when a
+  `dmvl` entry is set up and stays available across config entry reloads; it is
+  no longer removed in `async_unload_entry` (registering in `async_setup` and
+  removing on unload dropped it on every reload, because a reload does not
+  re-run `async_setup`).
 - R6 (MUST) The README documents: the first fetch at setup, the periodic poll,
   the configurable interval, and the `dmvl.refresh` service (with a YAML
   example).
@@ -60,7 +62,8 @@ the service, and a service lets automations pull fresh data after a payment.
 - `dmvl.refresh` without a target triggers a coordinator refresh on the loaded
   entry (assert an extra request).
 - `dmvl.refresh` with an entity target refreshes the owning entry.
-- Service is removed when the last entry is unloaded (or documented if kept).
+- Service survives a config entry reload and is kept (inert) with zero loaded
+  entries (spec 0012).
 
 ## Acceptance criteria
 
@@ -73,5 +76,6 @@ the service, and a service lets automations pull fresh data after a payment.
 ## Status
 
 `implemented` (2026-10-02) — configurable interval (1-24 h, default 6),
-`dmvl.refresh` service, README refresh mechanics; the service is removed when
-the last `dmvl` entry unloads.
+`dmvl.refresh` service, README refresh mechanics. R5 superseded by spec 0012
+(2026-10-03): the service is registered in `async_setup_entry` and survives a
+reload instead of being removed on unload.

@@ -40,8 +40,7 @@ from .coordinator import DmvlDataUpdateCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
-# The integration is configured only through the UI; `async_setup` exists just
-# to register the `dmvl.refresh` service.
+# The integration is configured only through the UI.
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,36 +92,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         device_name=account_device_name(session),
     )
 
+    _async_register_refresh_service(hass)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
-async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload the entry when its options change (spec 0006 R4)."""
-    await hass.config_entries.async_reload(entry.entry_id)
+def _async_register_refresh_service(hass: HomeAssistant) -> None:
+    """Register `dmvl.refresh` once, idempotently (spec 0012 R1/R2).
 
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry and close the client (spec 0002 R2)."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        runtime: DmvlRuntimeData | None = getattr(entry, "runtime_data", None)
-        if runtime is not None:
-            await runtime.client.close()
-        # Remove the service once no other dmvl entry is loaded (spec 0007 R5).
-        # `entry` is still LOADED during this call, so exclude it explicitly.
-        others_loaded = any(
-            other.entry_id != entry.entry_id and other.state is ConfigEntryState.LOADED
-            for other in hass.config_entries.async_entries(DOMAIN)
-        )
-        if not others_loaded:
-            hass.services.async_remove(DOMAIN, SERVICE_REFRESH)
-    return unload_ok
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register the `dmvl.refresh` service (spec 0007 R5)."""
+    Registered in `async_setup_entry`, not `async_setup`: Home Assistant does
+    not re-run component setup on a config entry reload, so a service removed
+    on unload would vanish until a full core restart.
+    """
+    if hass.services.has_service(DOMAIN, SERVICE_REFRESH):
+        return
 
     async def _async_refresh(call: ServiceCall) -> None:
         entry_ids = await async_extract_config_entry_ids(hass, call)
@@ -137,4 +121,24 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             await runtime.coordinator.async_refresh()
 
     hass.services.async_register(DOMAIN, SERVICE_REFRESH, _async_refresh)
-    return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when its options change (spec 0006 R4)."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry and close the client (spec 0002 R2, spec 0012 R4).
+
+    The `dmvl.refresh` service is intentionally not removed here: it stays
+    registered for the component so a reload (which does not re-run
+    `async_setup`) keeps it callable. With zero loaded entries the handler is
+    inert.
+    """
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        runtime: DmvlRuntimeData | None = getattr(entry, "runtime_data", None)
+        if runtime is not None:
+            await runtime.client.close()
+    return unload_ok
