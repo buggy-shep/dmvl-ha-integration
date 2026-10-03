@@ -63,12 +63,20 @@
           "show_charged": "Show charged sensor",
           "show_paid": "Show paid sensor",
           "show_last_payment": "Show last payment sensor",
+          "show_counters": "Show meter sensors",
+          "show_receipts": "Show receipts sensor",
+          "show_charge_history": "Show charge history sensor",
+          "show_due_segments": "Show amount due by channel sensor",
           "scan_interval_hours": "Update interval (hours)"
         },
         "data_description": {
           "show_charged": "Create the \"Charged\" sensor (total charged for the period).",
           "show_paid": "Create the \"Paid\" sensor (total paid for the period).",
           "show_last_payment": "Create the \"Last payment\" sensor with the amount attribute.",
+          "show_counters": "Create one sensor per meter with the latest reading and its history.",
+          "show_receipts": "Create the \"Receipts\" sensor with the receipt links.",
+          "show_charge_history": "Create the \"Charge history\" sensor with the per-period rows.",
+          "show_due_segments": "Create the \"Amount due by channel\" sensor with the payment-provider breakdown.",
           "scan_interval_hours": "How often the account data is polled, between 1 and 24 hours (default 6)."
         }
       }
@@ -92,6 +100,15 @@
       },
       "paid": {
         "name": "Paid"
+      },
+      "receipts": {
+        "name": "Receipts"
+      },
+      "charge_history": {
+        "name": "Charge history"
+      },
+      "due_segments": {
+        "name": "Amount due by channel"
       }
     }
   }

@@ -45,7 +45,7 @@ jobs:
           pip install -r requirements_dev.txt
       - name: Run tests with coverage
         run: |
-          pytest -m "not live" \
+          python -m pytest -m "not live" \
             --cov=custom_components/dmvl \
             --cov-report=term-missing \
             --cov-fail-under=95

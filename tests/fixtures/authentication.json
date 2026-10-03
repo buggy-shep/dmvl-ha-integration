@@ -48,5 +48,51 @@
       "sum": "150.00",
       "tax": "0.00"
     }
-  ]
+  ],
+  "counters": [
+    {
+      "sch_id": "<meter-1>",
+      "sch_name": "Cold water",
+      "st_name": "Cold water meter",
+      "sch_date_c": "2027-05-01",
+      "values": [
+        {
+          "sp_date_b": "2026-08-15",
+          "sp_date_e": "2026-08-23",
+          "sp_pok": "120.0",
+          "sp_val": "4.0",
+          "sp_type": "water",
+          "isActual": false
+        },
+        {
+          "sp_date_b": "2026-09-15",
+          "sp_date_e": "2026-09-23",
+          "sp_pok": "124.0",
+          "sp_val": "4.0",
+          "sp_type": "water",
+          "isActual": true
+        }
+      ]
+    },
+    {
+      "sch_id": "<meter-2>",
+      "sch_name": "Electricity",
+      "st_name": "Electricity meter",
+      "sch_date_c": null,
+      "values": [
+        {
+          "sp_date_b": "2026-09-01",
+          "sp_date_e": "2026-09-30",
+          "sp_pok": "5500.0",
+          "sp_val": "120.5",
+          "sp_type": "electricity",
+          "isActual": true
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "first_day_counters_values": "15",
+    "last_day_counters_values": "23"
+  }
 }

@@ -1,0 +1,26 @@
+{
+  "isService": false,
+  "count": 2,
+  "payments": [
+    {
+      "payment_id": 1,
+      "payment_header": "Provider A",
+      "payment_button": "Pay",
+      "payment_input": 0,
+      "payment_sum": 617.28,
+      "payment_tax": 1,
+      "payment_taxsum": 617.28
+    },
+    {
+      "payment_id": 2,
+      "payment_header": "Provider B",
+      "payment_button": "Pay",
+      "payment_input": 0,
+      "payment_sum": 100.0,
+      "payment_tax": 0,
+      "payment_taxsum": 100.0
+    }
+  ],
+  "payment_text": "The payment is credited within five business days.",
+  "hideSumWithTax": true
+}

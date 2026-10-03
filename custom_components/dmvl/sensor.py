@@ -15,20 +15,62 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
+from pydmvl import Counter
 
 from . import DmvlRuntimeData
 from .const import (
     ATTR_AMOUNT,
+    ATTR_BENEFIT,
+    ATTR_BUTTON,
+    ATTR_CHARGED,
+    ATTR_CHARGED_ADJUSTED,
+    ATTR_CHECKED,
     ATTR_DATE,
+    ATTR_DEBT_CLOSING,
+    ATTR_DEBT_OPENING,
+    ATTR_DIFFERENCE,
+    ATTR_HIDE_SUM_WITH_TAX,
+    ATTR_INPUT,
+    ATTR_IS_ACTUAL,
+    ATTR_IS_PAID,
+    ATTR_KIND,
     ATTR_LAST_PAYMENT_DATE,
+    ATTR_LINK,
+    ATTR_NAME,
+    ATTR_PAID,
+    ATTR_PAYMENT_ID,
     ATTR_PAYMENT_PURPOSE,
     ATTR_PAYMENTS,
     ATTR_PERIOD,
+    ATTR_PERIOD_END,
+    ATTR_PERIOD_START,
+    ATTR_PERIODS,
+    ATTR_PROVIDER,
+    ATTR_READINGS,
+    ATTR_READING,
+    ATTR_RECEIPTS,
+    ATTR_SEGMENTS,
+    ATTR_SERIAL,
+    ATTR_SERVICE,
+    ATTR_SUBMIT_PERIOD_ACTIVE,
+    ATTR_SUBMIT_PERIOD_END,
+    ATTR_SUBMIT_PERIOD_START,
+    ATTR_TAX,
+    ATTR_TAX_AMOUNT,
+    ATTR_TEXT,
+    ATTR_VOLUME,
     CURRENCY_RUB,
     OPTION_SHOW_CHARGED,
+    OPTION_SHOW_CHARGE_HISTORY,
+    OPTION_SHOW_COUNTERS,
+    OPTION_SHOW_DUE_SEGMENTS,
     OPTION_SHOW_LAST_PAYMENT,
     OPTION_SHOW_PAID,
+    OPTION_SHOW_RECEIPTS,
+    counters_submit_window,
     option_enabled,
+    submit_window_active,
 )
 from .coordinator import DmvlDataUpdateCoordinator
 from .entity import DmvlEntity
@@ -194,12 +236,209 @@ class DmvlLastPaymentSensor(DmvlEntity, SensorEntity):
         return {ATTR_AMOUNT: float(payment.amount)}
 
 
+class DmvlCounterSensor(DmvlEntity, SensorEntity):
+    """A meter reading (spec 0013 R2).
+
+    One entity per ``Session.counters`` entry, keyed by the meter serial. The
+    meter set is fixed at setup; a meter added later appears after a reload.
+    """
+
+    _entity_id_domain = Platform.SENSOR
+    _attr_translation_key: str | None = None
+
+    def __init__(
+        self,
+        coordinator: DmvlDataUpdateCoordinator,
+        entry: ConfigEntry,
+        counter: Counter,
+    ) -> None:
+        slug = slugify(counter.serial) or "meter"
+        super().__init__(coordinator, entry, f"counter_{slug}")
+        self._attr_unique_id = f"{entry.entry_id}_counter_{counter.serial or slug}"
+        self._attr_translation_key = None
+        self._serial = counter.serial
+        self._attr_name = counter.name or counter.service or counter.serial
+
+    def _counter(self) -> Counter | None:
+        """The latest snapshot's meter with this serial, if still present."""
+        for counter in self.coordinator.data.counters:
+            if counter.serial == self._serial:
+                return counter
+        return None
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._counter() is not None
+
+    @property
+    def native_value(self) -> float | None:
+        counter = self._counter()
+        reading = counter.current_reading if counter is not None else None
+        return float(reading.reading) if reading is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        counter = self._counter()
+        if counter is None:
+            return None
+        settings = self.coordinator.data.account.settings
+        attributes: dict[str, Any] = {}
+
+        def put(key: str, value: Any) -> None:
+            if value is not None and value != "":
+                attributes[key] = value
+
+        put(ATTR_SERIAL, self._serial)
+        put(ATTR_SERVICE, counter.service)
+        put(ATTR_CHECKED, counter.checked)
+        current = counter.current_reading
+        if current is not None:
+            put(ATTR_VOLUME, float(current.volume))
+            put(ATTR_KIND, current.kind)
+            put(ATTR_PERIOD_START, current.period_start)
+            put(ATTR_PERIOD_END, current.period_end)
+        put(
+            ATTR_READINGS,
+            [
+                {
+                    ATTR_PERIOD_START: reading.period_start,
+                    ATTR_PERIOD_END: reading.period_end,
+                    ATTR_READING: float(reading.reading),
+                    ATTR_VOLUME: float(reading.volume),
+                    ATTR_KIND: reading.kind,
+                    ATTR_IS_ACTUAL: reading.is_actual,
+                }
+                for reading in counter.readings
+            ],
+        )
+        start, end = counters_submit_window(settings)
+        put(ATTR_SUBMIT_PERIOD_START, start)
+        put(ATTR_SUBMIT_PERIOD_END, end)
+        active = submit_window_active(settings, dt_util.now().day)
+        if active is not None:
+            attributes[ATTR_SUBMIT_PERIOD_ACTIVE] = active
+        return attributes or None
+
+
+class DmvlReceiptsSensor(DmvlEntity, SensorEntity):
+    """Number of receipt links with the links as attributes (spec 0013 R3)."""
+
+    _entity_id_domain = Platform.SENSOR
+
+    def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "receipts")
+
+    @property
+    def native_value(self) -> int:
+        return len(self.coordinator.data.receipts)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        receipts = self.coordinator.data.receipts
+        if not receipts:
+            return None
+        return {
+            ATTR_RECEIPTS: [
+                {ATTR_KIND: receipt.kind, ATTR_NAME: receipt.name, ATTR_LINK: receipt.link}
+                for receipt in receipts
+            ]
+        }
+
+
+class DmvlChargeHistorySensor(DmvlEntity, SensorEntity):
+    """Number of charge periods with the period rows as attributes (0013 R4)."""
+
+    _entity_id_domain = Platform.SENSOR
+
+    def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "charge_history")
+
+    @property
+    def native_value(self) -> int:
+        return len(self.coordinator.data.charges)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        charges = self.coordinator.data.charges
+        if not charges:
+            return None
+        return {
+            ATTR_PERIODS: [
+                {
+                    ATTR_DATE: charge.date,
+                    ATTR_CHARGED: float(charge.charged),
+                    ATTR_CHARGED_ADJUSTED: float(charge.charged_adjusted),
+                    ATTR_BENEFIT: float(charge.benefit),
+                    ATTR_DIFFERENCE: float(charge.difference),
+                    ATTR_PAID: float(charge.paid),
+                    ATTR_DEBT_OPENING: float(charge.debt_opening),
+                    ATTR_DEBT_CLOSING: float(charge.debt_closing),
+                    ATTR_IS_PAID: charge.is_paid,
+                }
+                for charge in charges
+            ]
+        }
+
+
+class DmvlDueSegmentsSensor(DmvlEntity, SensorEntity):
+    """Amount due by payment channel (spec 0013 R5).
+
+    State is the number of payment segments; the segments themselves and the
+    payment text are attributes. Unavailable when the optional ``getpayments``
+    request failed while the account snapshot stayed valid (R6).
+    """
+
+    _entity_id_domain = Platform.SENSOR
+
+    def __init__(self, coordinator: DmvlDataUpdateCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "due_segments")
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.payment_options is not None
+
+    @property
+    def native_value(self) -> int | None:
+        options = self.coordinator.payment_options
+        return options.count if options is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        options = self.coordinator.payment_options
+        if options is None:
+            return None
+
+        def put(key: str, value: Any) -> None:
+            if value is not None and value != "":
+                attributes[key] = value
+
+        attributes: dict[str, Any] = {}
+        put(ATTR_TEXT, options.text)
+        attributes[ATTR_HIDE_SUM_WITH_TAX] = options.hide_sum_with_tax
+        put(
+            ATTR_SEGMENTS,
+            [
+                {
+                    ATTR_PAYMENT_ID: segment.payment_id,
+                    ATTR_PROVIDER: segment.provider,
+                    ATTR_BUTTON: segment.button,
+                    ATTR_AMOUNT: float(segment.amount),
+                    ATTR_TAX: float(segment.tax),
+                    ATTR_TAX_AMOUNT: float(segment.tax_amount),
+                    ATTR_INPUT: float(segment.input),
+                }
+                for segment in options.segments
+            ],
+        )
+        return attributes or None
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create the sensors selected by the options (spec 0002 R4, 0006 R3)."""
+    """Create the sensors selected by the options (spec 0002 R4, 0006 R3, 0013)."""
     runtime: DmvlRuntimeData = entry.runtime_data
     coordinator = runtime.coordinator
     options = entry.options
@@ -210,4 +449,15 @@ async def async_setup_entry(
         entities.append(DmvlPaidSensor(coordinator, entry))
     if option_enabled(options, OPTION_SHOW_LAST_PAYMENT):
         entities.append(DmvlLastPaymentSensor(coordinator, entry))
+    if option_enabled(options, OPTION_SHOW_COUNTERS):
+        entities.extend(
+            DmvlCounterSensor(coordinator, entry, counter)
+            for counter in coordinator.data.counters
+        )
+    if option_enabled(options, OPTION_SHOW_RECEIPTS):
+        entities.append(DmvlReceiptsSensor(coordinator, entry))
+    if option_enabled(options, OPTION_SHOW_CHARGE_HISTORY):
+        entities.append(DmvlChargeHistorySensor(coordinator, entry))
+    if option_enabled(options, OPTION_SHOW_DUE_SEGMENTS):
+        entities.append(DmvlDueSegmentsSensor(coordinator, entry))
     async_add_entities(entities)

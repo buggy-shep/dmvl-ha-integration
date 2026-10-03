@@ -98,6 +98,10 @@ amounts, receipt links) is deferred to later specs.
 - Meter readings, per-segment amounts, receipt links, historical periods,
   options flow, changing actions.
 
+These deferred read-only entities (meters, receipt links, historical periods
+and the amount-due-by-channel breakdown) are delivered as opt-in entities by
+spec 0013; account-changing actions remain out of scope.
+
 ## Status
 
 `implemented` (phase-3 entry decisions recorded in the group plan, 2026-10-01,

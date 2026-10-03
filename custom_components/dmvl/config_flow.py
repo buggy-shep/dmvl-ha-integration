@@ -44,8 +44,12 @@ from .const import (
     MIN_SCAN_INTERVAL_HOURS,
     OPTION_SCAN_INTERVAL_HOURS,
     OPTION_SHOW_CHARGED,
+    OPTION_SHOW_CHARGE_HISTORY,
+    OPTION_SHOW_COUNTERS,
+    OPTION_SHOW_DUE_SEGMENTS,
     OPTION_SHOW_LAST_PAYMENT,
     OPTION_SHOW_PAID,
+    OPTION_SHOW_RECEIPTS,
     option_enabled,
     scan_interval_hours,
 )
@@ -216,6 +220,22 @@ class DmvlOptionsFlow(OptionsFlow):
                 vol.Required(
                     OPTION_SHOW_LAST_PAYMENT,
                     default=option_enabled(options, OPTION_SHOW_LAST_PAYMENT),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_COUNTERS,
+                    default=option_enabled(options, OPTION_SHOW_COUNTERS),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_RECEIPTS,
+                    default=option_enabled(options, OPTION_SHOW_RECEIPTS),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_CHARGE_HISTORY,
+                    default=option_enabled(options, OPTION_SHOW_CHARGE_HISTORY),
+                ): BooleanSelector(),
+                vol.Required(
+                    OPTION_SHOW_DUE_SEGMENTS,
+                    default=option_enabled(options, OPTION_SHOW_DUE_SEGMENTS),
                 ): BooleanSelector(),
                 vol.Required(
                     OPTION_SCAN_INTERVAL_HOURS,

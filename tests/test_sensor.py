@@ -8,6 +8,12 @@ import json
 import pytest
 from homeassistant.core import HomeAssistant
 
+from custom_components.dmvl.const import (
+    OPTION_SHOW_CHARGE_HISTORY,
+    OPTION_SHOW_COUNTERS,
+    OPTION_SHOW_DUE_SEGMENTS,
+    OPTION_SHOW_RECEIPTS,
+)
 from tests.conftest import (
     AccountHandler,
     entity_id,
@@ -17,10 +23,15 @@ from tests.conftest import (
 )
 
 
-async def _setup(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch, payload: dict):
+async def _setup(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict,
+    options: dict | None = None,
+):
     handler = AccountHandler(payload=payload)
     patch_client(monkeypatch, handler)
-    entry = make_entry(hass)
+    entry = make_entry(hass, options=options)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
@@ -264,3 +275,289 @@ async def test_last_payment_is_unknown_for_unparsable_date(
     entry = await _setup(hass, monkeypatch, payload)
 
     assert _state(hass, entry, "sensor", "last_payment").state == "unknown"
+
+
+async def test_meter_sensors_expose_reading_and_attributes(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(
+        hass,
+        monkeypatch,
+        load_fixture("authentication.json"),
+        options={OPTION_SHOW_COUNTERS: True},
+    )
+
+    water = _state(hass, entry, "sensor", "counter_<meter-1>")
+    assert float(water.state) == 124.0
+    assert water.attributes["serial"] == "<meter-1>"
+    assert water.attributes["service"] == "Cold water meter"
+    assert water.attributes["checked"] == "2027-05-01"
+    assert water.attributes["volume"] == 4.0
+    assert water.attributes["kind"] == "water"
+    assert water.attributes["period_start"] == "2026-09-15"
+    assert water.attributes["period_end"] == "2026-09-23"
+    assert water.attributes["submit_period_start"] == 15
+    assert water.attributes["submit_period_end"] == 23
+    assert isinstance(water.attributes["submit_period_active"], bool)
+    assert len(water.attributes["readings"]) == 2
+    assert water.attributes["readings"][-1]["is_actual"] is True
+
+    power = _state(hass, entry, "sensor", "counter_<meter-2>")
+    assert float(power.state) == 5500.0
+    assert power.attributes["kind"] == "electricity"
+
+
+async def test_meter_sensor_unknown_without_actual_reading(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    for value in payload["counters"][0]["values"]:
+        value["isActual"] = False
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    assert _state(hass, entry, "sensor", "counter_<meter-1>").state == "unknown"
+
+
+async def test_receipts_sensor_lists_links(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(
+        hass,
+        monkeypatch,
+        load_fixture("authentication.json"),
+        options={OPTION_SHOW_RECEIPTS: True},
+    )
+
+    state = _state(hass, entry, "sensor", "receipts")
+    assert int(state.state) == 1
+    receipts = state.attributes["receipts"]
+    assert receipts[0]["kind"] == "utilities"
+    assert receipts[0]["name"] == "Receipt"
+    assert receipts[0]["link"].startswith("https://")
+
+
+async def test_receipts_sensor_includes_capital_repair(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["cap_bills"] = [
+        {"name": "Capital repair", "link": "https://example.invalid/cap.pdf"}
+    ]
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_RECEIPTS: True}
+    )
+
+    receipts = _state(hass, entry, "sensor", "receipts").attributes["receipts"]
+    by_kind = {receipt["kind"]: receipt for receipt in receipts}
+    assert set(by_kind) == {"utilities", "capital_repair"}
+    assert by_kind["capital_repair"]["link"].endswith("cap.pdf")
+
+
+async def test_counter_entity_ids_are_stable(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(
+        hass,
+        monkeypatch,
+        load_fixture("authentication.json"),
+        options={OPTION_SHOW_COUNTERS: True},
+    )
+
+    water = entity_id(hass, entry, "sensor", "counter_<meter-1>")
+    assert water == "sensor.dmvl_user_example_com_counter_meter_1"
+
+
+async def test_charge_history_sensor_lists_periods(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(
+        hass,
+        monkeypatch,
+        load_fixture("authentication.json"),
+        options={OPTION_SHOW_CHARGE_HISTORY: True},
+    )
+
+    state = _state(hass, entry, "sensor", "charge_history")
+    assert int(state.state) == 2
+    periods = state.attributes["periods"]
+    assert periods[0]["date"] == "2026-08-01"
+    assert periods[0]["charged"] == 250.0
+    assert periods[0]["is_paid"] is True
+    assert periods[1]["paid"] == 100.0
+    assert periods[1]["is_paid"] is False
+
+
+async def test_expansion_entities_absent_by_default(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    entry = await _setup(hass, monkeypatch, load_fixture("authentication.json"))
+
+    registry = er.async_get(hass)
+    unique_ids = {reg.unique_id for reg in registry.entities.values()}
+    assert f"{entry.entry_id}_receipts" not in unique_ids
+    assert f"{entry.entry_id}_charge_history" not in unique_ids
+    assert not any("_counter_" in unique_id for unique_id in unique_ids)
+
+
+def test_counters_submit_window_helpers() -> None:
+    from custom_components.dmvl.const import (
+        counters_submit_window,
+        submit_window_active,
+    )
+
+    assert counters_submit_window(
+        {"first_day_counters_values": "15", "last_day_counters_values": "23"}
+    ) == (15, 23)
+    assert counters_submit_window({}) == (None, None)
+    assert submit_window_active(
+        {"first_day_counters_values": "15", "last_day_counters_values": "23"}, 20
+    ) is True
+    assert submit_window_active(
+        {"first_day_counters_values": "15", "last_day_counters_values": "23"}, 10
+    ) is False
+    # a window that wraps the end of the month
+    assert submit_window_active(
+        {"first_day_counters_values": "25", "last_day_counters_values": "5"}, 2
+    ) is True
+    assert submit_window_active({}, 2) is None
+
+
+async def test_due_segments_sensor_from_getpayments(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(
+        payload_by_action={"getpayments": load_fixture("getpayments.json")}
+    )
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = _state(hass, entry, "sensor", "due_segments")
+    assert int(state.state) == 2
+    assert state.attributes["text"].startswith("The payment")
+    assert state.attributes["hide_sum_with_tax"] is True
+    segments = state.attributes["segments"]
+    assert segments[0]["payment_id"] == 1
+    assert segments[0]["provider"] == "Provider A"
+    assert segments[0]["amount"] == 617.28
+    assert segments[0]["tax"] == 1.0
+    assert segments[0]["tax_amount"] == 617.28
+
+
+async def test_due_segments_not_requested_when_disabled(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(
+        payload_by_action={"getpayments": load_fixture("getpayments.json")}
+    )
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    actions = [request.url.params.get("action") for request in handler.requests]
+    assert "getpayments" not in actions
+
+
+async def test_due_segments_failure_keeps_core_available(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(status_by_action={"getpayments": 500})
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    # the account snapshot is still valid and served
+    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
+    segments = _state(hass, entry, "sensor", "due_segments")
+    assert segments.state == "unavailable"
+
+
+async def test_due_segments_refresh_uses_latest_data(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(
+        payload_by_action={"getpayments": load_fixture("getpayments.json")}
+    )
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    updated = copy.deepcopy(load_fixture("getpayments.json"))
+    updated["count"] = 1
+    updated["payments"] = updated["payments"][:1]
+    handler.payload_by_action["getpayments"] = updated
+
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert int(_state(hass, entry, "sensor", "due_segments").state) == 1
+
+
+async def test_due_segments_refresh_failure_only_disables_segments(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    handler = AccountHandler(
+        payload_by_action={"getpayments": load_fixture("getpayments.json")}
+    )
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    handler.status_by_action["getpayments"] = 500
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data.coordinator.last_update_success is True
+    assert float(_state(hass, entry, "sensor", "account").state) == 150.0
+    assert _state(hass, entry, "sensor", "due_segments").state == "unavailable"
+
+
+async def test_due_segments_refresh_auth_failure_starts_reauth(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from custom_components.dmvl.const import DOMAIN
+
+    handler = AccountHandler(
+        payload_by_action={"getpayments": load_fixture("getpayments.json")}
+    )
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    handler.error_by_action["getpayments"] = "rejected"
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert any(flow["context"]["source"] == "reauth" for flow in flows)
+
+
+async def test_setup_segments_auth_failure_triggers_reauth(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from custom_components.dmvl.const import DOMAIN
+    from homeassistant.config_entries import ConfigEntryState
+
+    handler = AccountHandler()
+    handler.error_by_action["getpayments"] = "rejected"
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass, options={OPTION_SHOW_DUE_SEGMENTS: True})
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert any(flow["context"]["source"] == "reauth" for flow in flows)

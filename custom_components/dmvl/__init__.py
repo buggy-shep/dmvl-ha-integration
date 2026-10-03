@@ -1,4 +1,4 @@
-"""The Domovladelets integration (specs 0001-0007).
+"""The Domovladelets integration (specs 0001-0013).
 
 Setup validates the account by requesting the account snapshot, then keeps a
 polling coordinator that feeds the sensor and binary-sensor entities. The
@@ -8,7 +8,9 @@ in-memory session; they are never logged. Authentication failures trigger
 reauth; connectivity failures retry; unloading closes the client. The
 management organization and the account code name the HA device (spec 0011 R4);
 an options flow selects the optional entities and the polling interval
-(spec 0006); `dmvl.refresh` updates data on demand (spec 0007).
+(spec 0006); `dmvl.refresh` updates data on demand (spec 0007). Spec 0013 adds
+opt-in read-only entities (meters, receipts, charge history) and an
+amount-due-by-channel sensor backed by an additional `getpayments` request.
 """
 
 from __future__ import annotations
@@ -33,7 +35,9 @@ from .const import (
     CONF_VERIFY,
     DEVICE_NAME,
     DOMAIN,
+    OPTION_SHOW_DUE_SEGMENTS,
     SERVICE_REFRESH,
+    option_enabled,
     scan_interval_hours,
 )
 from .coordinator import DmvlDataUpdateCoordinator
@@ -84,7 +88,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(str(err)) from err
 
     interval = timedelta(hours=scan_interval_hours(entry.options))
-    coordinator = DmvlDataUpdateCoordinator(hass, client, update_interval=interval)
+    include_segments = option_enabled(entry.options, OPTION_SHOW_DUE_SEGMENTS)
+    coordinator = DmvlDataUpdateCoordinator(
+        hass, client, update_interval=interval, include_payment_options=include_segments
+    )
+    if include_segments:
+        # The snapshot is valid; a failed segments call only makes the
+        # due-segments entity unavailable, it does not abort setup (0013 R6).
+        try:
+            coordinator.payment_options = await client.payment_segments()
+        except AuthError as err:
+            await client.close()
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except (ApiError, httpx.HTTPError) as err:
+            _LOGGER.warning("amount-due segments are unavailable: %s", err)
     coordinator.async_set_updated_data(session)
     entry.runtime_data = DmvlRuntimeData(
         client=client,

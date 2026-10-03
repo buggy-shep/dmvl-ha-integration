@@ -49,10 +49,16 @@ class AccountHandler:
         error: str | None = None,
         transport_error: Exception | None = None,
         payload_by_login: dict[str, dict[str, Any]] | None = None,
+        payload_by_action: dict[str, dict[str, Any]] | None = None,
+        error_by_action: dict[str, str] | None = None,
+        status_by_action: dict[str, int] | None = None,
     ) -> None:
         self.status = status
         self.payload = payload if payload is not None else load_fixture("authentication.json")
         self.payload_by_login = payload_by_login or {}
+        self.payload_by_action = payload_by_action or {}
+        self.error_by_action = error_by_action or {}
+        self.status_by_action = status_by_action or {}
         self.error = error
         self.transport_error = transport_error
         self.requests: list[httpx.Request] = []
@@ -61,12 +67,19 @@ class AccountHandler:
         self.requests.append(request)
         if self.transport_error is not None:
             raise self.transport_error
+        action = request.url.params.get("action")
+        if action in self.status_by_action:
+            return httpx.Response(self.status_by_action[action], json={"error": "failed"})
+        if action in self.error_by_action:
+            return httpx.Response(200, json={"error": self.error_by_action[action]})
         if self.error is not None:
             return httpx.Response(200, json={"error": self.error})
         payload = self.payload
         login = request.url.params.get("login")
         if self.payload_by_login and login in self.payload_by_login:
             payload = self.payload_by_login[login]
+        if self.payload_by_action and action in self.payload_by_action:
+            payload = self.payload_by_action[action]
         return httpx.Response(self.status, json=payload)
 
 
@@ -97,6 +110,7 @@ def make_entry(
     password: str = PASSWORD,
     verify: bool = False,
     unique_id: str | None = None,
+    options: dict[str, Any] | None = None,
 ) -> MockConfigEntry:
     """Create and register a dmvl config entry for the account."""
     entry = MockConfigEntry(
@@ -104,6 +118,7 @@ def make_entry(
         unique_id=unique_id if unique_id is not None else login.strip().lower(),
         data={CONF_LOGIN: login, CONF_PASSWORD: password, CONF_VERIFY: verify},
         title=login,
+        options=options or {},
     )
     entry.add_to_hass(hass)
     return entry

@@ -15,8 +15,12 @@ from custom_components.dmvl.const import (
     DOMAIN,
     OPTION_SCAN_INTERVAL_HOURS,
     OPTION_SHOW_CHARGED,
+    OPTION_SHOW_CHARGE_HISTORY,
+    OPTION_SHOW_COUNTERS,
+    OPTION_SHOW_DUE_SEGMENTS,
     OPTION_SHOW_LAST_PAYMENT,
     OPTION_SHOW_PAID,
+    OPTION_SHOW_RECEIPTS,
 )
 from tests.conftest import LOGIN, PASSWORD, AccountHandler, patch_client
 
@@ -87,6 +91,11 @@ async def test_options_form_shows_defaults(
     assert defaults[OPTION_SHOW_CHARGED] is True
     assert defaults[OPTION_SHOW_PAID] is True
     assert defaults[OPTION_SHOW_LAST_PAYMENT] is True
+    # read-only expansion is opt-in (spec 0013 R1)
+    assert defaults[OPTION_SHOW_COUNTERS] is False
+    assert defaults[OPTION_SHOW_RECEIPTS] is False
+    assert defaults[OPTION_SHOW_CHARGE_HISTORY] is False
+    assert defaults[OPTION_SHOW_DUE_SEGMENTS] is False
     assert defaults[OPTION_SCAN_INTERVAL_HOURS] == 6
 
     interval_selector = next(
@@ -156,3 +165,36 @@ async def test_options_toggle_back_recreates_entities(
     assert result["type"] == FlowResultType.CREATE_ENTRY
     for domain, suffix in OPTIONAL_SUFFIXES:
         assert _provided(hass, entry, domain, suffix), suffix
+
+
+async def test_options_enable_expansion_entities(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    entry = await _setup(hass, monkeypatch)
+    # the read-only expansion is off by default (spec 0013 R1)
+    assert not _provided(hass, entry, "sensor", "receipts")
+    assert not _provided(hass, entry, "sensor", "charge_history")
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await _submit_options(
+        hass,
+        result,
+        {
+            OPTION_SHOW_CHARGED: True,
+            OPTION_SHOW_PAID: True,
+            OPTION_SHOW_LAST_PAYMENT: True,
+            OPTION_SHOW_COUNTERS: True,
+            OPTION_SHOW_RECEIPTS: True,
+            OPTION_SHOW_CHARGE_HISTORY: True,
+            OPTION_SHOW_DUE_SEGMENTS: True,
+        },
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert _provided(hass, entry, "sensor", "receipts")
+    assert _provided(hass, entry, "sensor", "charge_history")
+    registry = er.async_get(hass)
+    unique_ids = {reg.unique_id for reg in registry.entities.values()}
+    assert f"{entry.entry_id}_counter_<meter-1>" in unique_ids

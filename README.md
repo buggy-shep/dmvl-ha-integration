@@ -98,8 +98,27 @@ independent of the device name and area.
 ### Optional entities
 
 The account options (*Settings → Devices & Services → Domovladelets →
-Configure*) let you hide the **Charged**, **Paid** and **Last payment**
-entities. **Account** and **Unpaid documents** are always created.
+Configure*) let you choose the entity set. **Account** and **Unpaid documents**
+are always created; everything else is opt-in:
+
+- **Charged**, **Paid**, **Last payment** — the per-period aggregates
+  (enabled by default);
+- **Meters** — one `sensor` per meter: the latest reading as the state, with
+  `volume`, `kind`, `period_start`/`period_end`, `checked`, a `readings`
+  history, and the monthly submission window
+  (`submit_period_start`/`submit_period_end`/`submit_period_active`);
+- **Receipts** — a `sensor` whose state is the number of receipts and whose
+  `receipts` attribute lists `{kind, name, link}`
+  (`utilities` and `capital_repair`);
+- **Charge history** — a `sensor` whose state is the number of charge periods
+  and whose `periods` attribute lists
+  `{date, charged, charged_adjusted, benefit, difference, paid,
+  debt_opening, debt_closing, is_paid}`;
+- **Amount due by channel** — a `sensor` whose state is the number of payment
+  segments and whose `segments` attribute breaks the amount due down by
+  payment provider; a failed breakdown leaves the other entities available.
+
+A meter added to the account after setup appears after a reload/restart.
 
 ## Data updates
 
@@ -135,8 +154,9 @@ Account data is read-only and refreshed:
 
 ## Roadmap
 
-- Meter readings (read-only) and their submission period.
-- Per-segment amount due and receipt links.
+- Submitting meter readings and other account-changing actions (needs an
+  explicit confirmation and a separate design).
+- Verification-date reminders for meters.
 
 ## License
 
