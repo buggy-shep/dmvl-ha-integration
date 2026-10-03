@@ -308,6 +308,51 @@ async def test_meter_sensors_expose_reading_and_attributes(
     assert power.attributes["kind"] == "electricity"
 
 
+async def test_meter_sensor_name_is_service_and_serial(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    entry = await _setup(
+        hass,
+        monkeypatch,
+        load_fixture("authentication.json"),
+        options={OPTION_SHOW_COUNTERS: True},
+    )
+
+    water = _state(hass, entry, "sensor", "counter_<meter-1>")
+    assert water.attributes["friendly_name"].endswith("Cold water meter <meter-1>")
+    power = _state(hass, entry, "sensor", "counter_<meter-2>")
+    assert power.attributes["friendly_name"].endswith("Electricity meter <meter-2>")
+
+
+async def test_meter_sensor_name_falls_back_to_name_without_service(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["counters"][0]["st_name"] = None
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    water = _state(hass, entry, "sensor", "counter_<meter-1>")
+    assert water.attributes["friendly_name"].endswith("Cold water")
+
+
+async def test_meter_sensor_name_falls_back_to_serial(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["counters"][0]["st_name"] = None
+    payload["counters"][0]["sch_name"] = None
+
+    entry = await _setup(
+        hass, monkeypatch, payload, options={OPTION_SHOW_COUNTERS: True}
+    )
+
+    water = _state(hass, entry, "sensor", "counter_<meter-1>")
+    assert water.attributes["friendly_name"].endswith("<meter-1>")
+
+
 async def test_meter_sensor_falls_back_to_latest_reading(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -496,6 +541,31 @@ def test_counters_submit_window_helpers() -> None:
         {"first_day_counters_values": "25", "last_day_counters_values": "5"}, 2
     ) is True
     assert submit_window_active({}, 2) is None
+
+
+def test_counter_display_name() -> None:
+    from pydmvl import Counter
+
+    from custom_components.dmvl.sensor import _counter_display_name
+
+    def display(
+        name: str = "", serial: str = "", service: str | None = None
+    ) -> str:
+        meter = Counter(
+            name=name, serial=serial, service=service, checked=None, readings=()
+        )
+        return _counter_display_name(meter)
+
+    assert display(serial="42", service="Hot water") == "Hot water 42"
+    # stray whitespace is stripped from both parts
+    assert display(serial=" 42 ", service=" Hot water ") == "Hot water 42"
+    # service without a serial
+    assert display(service="Hot water") == "Hot water"
+    # service missing -> meter name, then serial
+    assert display(name="Meter", serial="42") == "Meter"
+    assert display(serial="42") == "42"
+    # a whitespace-only name falls through to the serial
+    assert display(name="  ", serial="42") == "42"
 
 
 async def test_due_segments_sensor_from_getpayments(

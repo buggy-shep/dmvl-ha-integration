@@ -79,6 +79,22 @@ from .entity import DmvlEntity
 PARALLEL_UPDATES = 0
 
 
+def _counter_display_name(counter: Counter) -> str:
+    """Meter sensor name: "<service> <serial>" (spec 0017).
+
+    Parts are stripped so the join never leaves a doubled or edge space.
+    When the service is missing the name falls back to the meter name and
+    then the serial, so it is never empty while any field is set.
+    """
+    service = counter.service.strip() if counter.service else ""
+    if service:
+        serial = counter.serial.strip() if counter.serial else ""
+        return f"{service} {serial}".strip()
+    serial = counter.serial.strip() if counter.serial else ""
+    name = counter.name.strip() if counter.name else ""
+    return name or serial
+
+
 def _reading_order_key(reading: CounterReading) -> tuple[str, str]:
     """Sort key for reading recency: by period end, then period start.
 
@@ -267,7 +283,7 @@ class DmvlCounterSensor(DmvlEntity, SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_counter_{counter.serial or slug}"
         self._attr_translation_key = None
         self._serial = counter.serial
-        self._attr_name = counter.name or counter.service or counter.serial
+        self._attr_name = _counter_display_name(counter)
 
     def _counter(self) -> Counter | None:
         """The latest snapshot's meter with this serial, if still present."""
