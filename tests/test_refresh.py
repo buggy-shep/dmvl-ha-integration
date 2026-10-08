@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 
 from custom_components.dmvl.const import (
     DEFAULT_SCAN_INTERVAL_HOURS,
@@ -185,3 +185,35 @@ async def test_refresh_service_kept_after_last_unload_and_inert(
     await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
     await hass.async_block_till_done()
     assert len(handler.requests) == requests_before
+
+
+async def test_refresh_service_adapts_to_service_call_first_helper(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Spec 0019: HA 2026.10.0 changed async_extract_config_entry_ids to take the
+    # ServiceCall first. The integration must detect the signature and pass the
+    # ServiceCall, not hass (which raised AttributeError: no attribute 'hass').
+    entry, handler = await _setup(hass, monkeypatch)
+    seen: list[ServiceCall] = []
+
+    async def _service_call_first(service_call, expand_group=True):
+        # Mirror the 2026.10 helper, which reads ``service_call.hass``. The
+        # pre-fix call passed ``hass`` as the first argument, so this raises
+        # AttributeError before the fix and succeeds after it.
+        assert service_call.hass is hass
+        seen.append(service_call)
+        return {entry.entry_id}
+
+    monkeypatch.setattr(
+        "custom_components.dmvl.async_extract_config_entry_ids",
+        _service_call_first,
+    )
+
+    requests_before = len(handler.requests)
+    await hass.services.async_call(DOMAIN, "refresh", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    assert len(seen) == 1
+    assert isinstance(seen[0], ServiceCall)
+    assert len(handler.requests) > requests_before
+    assert entry.runtime_data.coordinator.last_update_success is True

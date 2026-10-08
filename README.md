@@ -30,8 +30,10 @@ The integration polls the account screen on a schedule and exposes:
   attributes.
 - **Charged** — the total charged for the current period.
 - **Paid** — the total paid for the current period.
-- **Unpaid documents** — a `binary_sensor` that turns on when any document is
-  unpaid.
+- **Debt** — a `binary_sensor` that turns on when the account currently owes
+  money (the signed balance is negative), matching the vendor app. Its
+  `unpaid_periods` attribute lists historical periods the service has not
+  settled, without turning the flag on by itself.
 - **Last payment** — the date of the most recent payment, with the amount as an
   attribute.
 - **Diagnostics** — a redacted account snapshot for bug reports
@@ -85,7 +87,7 @@ Turn it on to require a valid certificate chain if your setup supports it.
 | Account | `sensor` | Account balance as reported (negative = to pay, positive = overpayment); also carries identity/address/contacts/amounts/counts attributes |
 | Charged | `sensor` | Total charged for the current period; `period` and `payment_purpose` attributes |
 | Paid | `sensor` | Total paid for the current period; `period`, `payment_purpose`, `last_payment_date` and `payments` attributes |
-| Unpaid documents | `binary_sensor` | On when a document is unpaid |
+| Debt | `binary_sensor` | On when the account balance is negative (currently owes money); `unpaid_periods` attribute lists unsettled historical periods |
 | Last payment | `sensor` | Date of the latest payment (`amount` attribute) |
 
 The account is represented as a single Home Assistant device named after the
@@ -98,7 +100,7 @@ independent of the device name and area.
 ### Optional entities
 
 The account options (*Settings → Devices & Services → Domovladelets →
-Configure*) let you choose the entity set. **Account** and **Unpaid documents**
+Configure*) let you choose the entity set. **Account** and **Debt**
 are always created; everything else is opt-in:
 
 - **Charged**, **Paid**, **Last payment** — the per-period aggregates

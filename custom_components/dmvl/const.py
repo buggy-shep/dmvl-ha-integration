@@ -54,6 +54,8 @@ ATTR_PERIOD: Final = "period"
 ATTR_PAYMENT_PURPOSE: Final = "payment_purpose"
 ATTR_LAST_PAYMENT_DATE: Final = "last_payment_date"
 ATTR_PAYMENTS: Final = "payments"
+ATTR_HAS_DEBT: Final = "has_debt"
+ATTR_UNPAID_PERIODS: Final = "unpaid_periods"
 
 # Meter sensors (spec 0013 R2).
 ATTR_SERIAL: Final = "serial"
