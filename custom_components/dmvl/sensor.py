@@ -176,7 +176,7 @@ class DmvlAccountSensor(DmvlMoneySensor):
         put("adjustment", float(summary.difference))
         put("paid", float(summary.paid))
         put("closing_balance", float(summary.debt_closing))
-        put("unpaid_documents", session.has_unpaid_documents)
+        put("unpaid_documents", summary.has_debt)
         put("charge_periods", account.charges)
         put("payment_count", account.payments)
         put("counters", account.counters)

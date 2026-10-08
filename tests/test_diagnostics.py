@@ -36,9 +36,13 @@ async def test_diagnostics_redacts_credentials(
 
     assert str(result["entry"]["version"]) == MANIFEST_VERSION
     assert result["account"]["debt_current"] == -150.0
+    assert result["account"]["has_debt"] is True
     assert result["account"]["charged"] == 500.0
     assert result["account"]["paid"] == 350.0
     assert result["account"]["has_unpaid_documents"] is True
+    assert result["account"]["unpaid_periods"] == [
+        {"date": "2026-09-01", "charged_adjusted": 250.0, "paid": 100.0}
+    ]
     assert result["account"]["last_payment"] == {"date": "2026-09-10", "amount": 150.0}
 
     dumped = json.dumps(result)

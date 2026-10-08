@@ -86,7 +86,7 @@
   "entity": {
     "binary_sensor": {
       "unpaid_documents": {
-        "name": "Unpaid documents"
+        "name": "Debt"
       }
     },
     "sensor": {

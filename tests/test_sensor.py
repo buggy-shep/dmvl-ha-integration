@@ -68,6 +68,20 @@ async def test_account_sensor_keeps_negative_balance_sign(
     assert float(_state(hass, entry, "sensor", "account").state) == -3148.75
 
 
+async def test_account_unpaid_flag_follows_current_debt(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Spec 0020 R2: with no current debt the attribute is False even though a
+    # historical period is not settled.
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["all_debt_c"] = "0.00"
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    attrs = _state(hass, entry, "sensor", "account").attributes
+    assert attrs["unpaid_documents"] is False
+
+
 async def test_account_sensor_exposes_account_attributes(
     hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
 ) -> None:

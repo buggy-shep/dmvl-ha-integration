@@ -9,7 +9,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
-from .const import CONF_LOGIN, CONF_PASSWORD, DOMAIN
+from .const import (
+    ATTR_CHARGED_ADJUSTED,
+    ATTR_DATE,
+    ATTR_HAS_DEBT,
+    ATTR_PAID,
+    ATTR_UNPAID_PERIODS,
+    CONF_LOGIN,
+    CONF_PASSWORD,
+    DOMAIN,
+)
 
 TO_REDACT = {CONF_LOGIN, CONF_PASSWORD}
 
@@ -33,12 +42,23 @@ async def async_get_config_entry_diagnostics(
         return diagnostics
 
     session = runtime.coordinator.data
+    summary = session.personal_account
     payment = session.last_payment
     diagnostics["account"] = {
-        "debt_current": float(session.personal_account.debt_current),
-        "charged": float(session.personal_account.charged),
-        "paid": float(session.personal_account.paid),
-        "has_unpaid_documents": session.has_unpaid_documents,
+        "debt_current": float(summary.debt_current),
+        ATTR_HAS_DEBT: summary.has_debt,
+        "charged": float(summary.charged),
+        "paid": float(summary.paid),
+        "has_unpaid_documents": summary.has_debt,
+        ATTR_UNPAID_PERIODS: [
+            {
+                ATTR_DATE: charge.date,
+                ATTR_CHARGED_ADJUSTED: float(charge.charged_adjusted),
+                ATTR_PAID: float(charge.paid),
+            }
+            for charge in session.charges
+            if not charge.is_paid
+        ],
         "last_payment": (
             None
             if payment is None
