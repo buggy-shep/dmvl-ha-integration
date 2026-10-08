@@ -15,6 +15,7 @@ amount-due-by-channel sensor backed by an additional `getpayments` request.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
@@ -126,7 +127,7 @@ def _async_register_refresh_service(hass: HomeAssistant) -> None:
         return
 
     async def _async_refresh(call: ServiceCall) -> None:
-        entry_ids = await async_extract_config_entry_ids(hass, call)
+        entry_ids = await _async_extract_entry_ids(hass, call)
         entries = [
             entry
             for entry in hass.config_entries.async_entries(DOMAIN)
@@ -138,6 +139,25 @@ def _async_register_refresh_service(hass: HomeAssistant) -> None:
             await runtime.coordinator.async_refresh()
 
     hass.services.async_register(DOMAIN, SERVICE_REFRESH, _async_refresh)
+
+
+async def _async_extract_entry_ids(
+    hass: HomeAssistant, call: ServiceCall
+) -> set[str]:
+    """Resolve the service-call targets across the core helper signature change.
+
+    Home Assistant's ``async_extract_config_entry_ids`` was ``hass``-first
+    (``bind_hass`` contract, first parameter named ``hass``) and became
+    ``ServiceCall``-first on 2026.10.0, where it reads ``service_call.hass``.
+    Passing ``hass`` first to the new helper raises
+    ``AttributeError: 'HomeAssistant' object has no attribute 'hass'`` (spec
+    0019). Detect the leading parameter at call time and pass the matching
+    arguments; the ``hass`` parameter stays in this signature for both branches.
+    """
+    params = inspect.signature(async_extract_config_entry_ids).parameters
+    if next(iter(params), None) == "hass":
+        return await async_extract_config_entry_ids(hass, call)
+    return await async_extract_config_entry_ids(call)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
