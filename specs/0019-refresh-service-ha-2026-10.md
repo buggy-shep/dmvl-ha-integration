@@ -23,11 +23,12 @@ caught because the test environment pins an older Home Assistant
 (`pytest-homeassistant-custom-component==0.13.205` → HA 2025.1.4) whose helper
 still takes `hass` first.
 
-A hard minimum-version bump to 2026.10.0 was considered and rejected: the new
-core release is not installable in the current CI/dev environment, so such a
-bump could not be verified, and it would drop users on older cores
-unnecessarily. Adapting to the signature is small, testable, and keeps the
-supported range wide.
+A hard minimum-version bump to 2026.10.0 was considered and rejected: HA
+2026.10 requires Python >= 3.14, which is not available in this workspace (only
+3.12.3) and Docker/`act` is unavailable, so the mandatory local-green gate
+could not be run against it; the bump would also drop users on older cores
+unnecessarily. Adapting to the signature is small, verifiable against the
+pinned core, and keeps the supported range wide.
 
 ## Requirements
 
@@ -89,13 +90,13 @@ No user-facing API change. `dmvl.refresh` keeps its name, target schema
 
 ## Out of scope
 
-- Running the suite against a real HA 2026.10.0 (not installable in the
-  environment; the signature adaptation is covered by a simulated helper).
+- Running the suite against a real HA 2026.10.0 (HA 2026.10 requires Python
+  >= 3.14, unavailable in this workspace; the signature adaptation is covered
+  by a simulated helper).
 - Lowering the pinned Home Assistant version or removing the adaptation once
   the whole supported range uses the new signature (a future cleanup).
 
 ## Status
 
-`approved` (2026-10-08) — recorded decision in the conversation ("делай всё"):
-fix the reported 2026.10.0 refresh failure in a single branch/PR together with
-spec 0020.
+`approved` (2026-10-08) — recorded user decision to fix the reported 2026.10.0
+refresh failure in a single branch/PR together with spec 0020.

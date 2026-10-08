@@ -105,5 +105,5 @@ nor confused with the current debt.
 
 ## Status
 
-`approved` (2026-10-08) — recorded decision in the conversation ("делай всё"):
-ship with spec 0019 in one branch/PR.
+`approved` (2026-10-08) — recorded user decision to ship with spec 0019 in one
+branch/PR.

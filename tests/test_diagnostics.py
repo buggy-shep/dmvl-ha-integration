@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from tests.conftest import (
     LOGIN,
     PASSWORD,
     AccountHandler,
+    load_fixture,
     make_entry,
     patch_client,
 )
@@ -48,6 +50,29 @@ async def test_diagnostics_redacts_credentials(
     dumped = json.dumps(result)
     assert LOGIN not in dumped
     assert PASSWORD not in dumped
+
+
+async def test_diagnostics_unsettled_period_without_debt(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Spec 0020: with zero current debt the account flag follows the balance
+    # and stays False, while the unsettled historical period stays visible.
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["all_debt_c"] = "0.00"
+    handler = AccountHandler(payload=payload)
+    patch_client(monkeypatch, handler)
+    entry = make_entry(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert result["account"]["debt_current"] == 0.0
+    assert result["account"]["has_debt"] is False
+    assert result["account"]["has_unpaid_documents"] is False
+    assert result["account"]["unpaid_periods"] == [
+        {"date": "2026-09-01", "charged_adjusted": 250.0, "paid": 100.0}
+    ]
 
 
 async def test_diagnostics_without_runtime_data(

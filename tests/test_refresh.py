@@ -197,6 +197,10 @@ async def test_refresh_service_adapts_to_service_call_first_helper(
     seen: list[ServiceCall] = []
 
     async def _service_call_first(service_call, expand_group=True):
+        # Mirror the 2026.10 helper, which reads ``service_call.hass``. The
+        # pre-fix call passed ``hass`` as the first argument, so this raises
+        # AttributeError before the fix and succeeds after it.
+        assert service_call.hass is hass
         seen.append(service_call)
         return {entry.entry_id}
 

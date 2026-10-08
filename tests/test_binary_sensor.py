@@ -96,3 +96,18 @@ async def test_unpaid_periods_empty_when_every_period_settled(
 
     state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
     assert state.attributes["unpaid_periods"] == []
+
+
+async def test_unpaid_periods_absent_when_no_charges(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Spec 0020 R3: with no charges at all the attribute is absent, not empty.
+    payload = copy.deepcopy(load_fixture("authentication.json"))
+    payload["personal_account"]["all_debt_c"] = "0.00"
+    payload["history_charges"] = []
+
+    entry = await _setup(hass, monkeypatch, payload)
+
+    state = hass.states.get(entity_id(hass, entry, "binary_sensor", "unpaid_documents"))
+    assert state.state == "off"
+    assert "unpaid_periods" not in state.attributes
